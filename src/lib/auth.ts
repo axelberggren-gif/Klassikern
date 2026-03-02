@@ -42,7 +42,13 @@ export function useAuth(): AuthState {
       .eq('id', userId)
       .single();
 
-    if (error || !data) {
+    if (error) {
+      console.error('[useAuth] fetchProfile error:', error.message, error.code);
+      return null;
+    }
+
+    if (!data) {
+      console.error('[useAuth] fetchProfile: no data returned for user', userId);
       return null;
     }
 
@@ -57,7 +63,12 @@ export function useAuth(): AuthState {
       try {
         const {
           data: { user: currentUser },
+          error: userError,
         } = await supabase.auth.getUser();
+
+        if (userError) {
+          console.error('[useAuth] getUser error:', userError.message);
+        }
 
         setUser(currentUser);
 
@@ -67,12 +78,15 @@ export function useAuth(): AuthState {
 
           // If no profile exists at all, sign out (admin must create user properly)
           if (!userProfile) {
+            console.warn('[useAuth] No profile found, signing out');
             await supabase.auth.signOut();
-            router.replace('/login');
+            window.location.href = '/login';
+            return;
           }
         }
-      } catch {
+      } catch (err) {
         // Auth check failed — user is not authenticated
+        console.error('[useAuth] initAuth error:', err);
         setUser(null);
         setProfile(null);
       } finally {
