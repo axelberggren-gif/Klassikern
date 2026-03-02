@@ -7,7 +7,6 @@ import { NextResponse, type NextRequest } from 'next/server';
  *
  * Public routes (no auth required):
  *  - /login
- *  - /onboarding
  *  - Static assets & Next.js internals (_next, favicon, etc.)
  */
 export async function middleware(request: NextRequest) {
@@ -49,8 +48,7 @@ async function updateSession(request: NextRequest) {
 
   // Allow public routes without authentication
   const isPublicRoute =
-    pathname === '/login' ||
-    pathname === '/onboarding';
+    pathname === '/login';
 
   if (!user && !isPublicRoute) {
     // Unauthenticated user trying to access a protected route — redirect to login
