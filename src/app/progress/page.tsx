@@ -98,8 +98,14 @@ export default function ProgressPage() {
     getUserStats(user.id).then(setStats);
   }, [user]);
 
-  if (loading || !profile || !stats) return null;
-
+  if (loading || !profile || !stats) return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-3 border-orange-500 border-t-transparent" />
+          <p className="text-sm text-gray-400">Laddar...</p>
+        </div>
+      </div>
+    );
   return (
     <AppShell>
       {/* Header */}

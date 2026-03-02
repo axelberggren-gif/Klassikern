@@ -14,49 +14,60 @@ export async function middleware(request: NextRequest) {
 }
 
 async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  // IMPORTANT: Do NOT use supabase.auth.getSession() here.
-  // getUser() sends a request to the Supabase Auth server every time
-  // to revalidate the Auth token, while getSession() does not.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const { pathname } = request.nextUrl;
 
   // Allow public routes without authentication
   const isPublicRoute =
     pathname === '/login' ||
     pathname.startsWith('/auth/callback') ||
-    pathname === '/api/strava/webhook';
+    pathname === '/api/strava/webhook' ||
+    pathname === '/manifest.json' ||
+    pathname.startsWith('/icons/');
 
-  if (!user && !isPublicRoute) {
-    // Unauthenticated user trying to access a protected route — redirect to login
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
+  let supabaseResponse = NextResponse.next({ request });
+
+  try {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) =>
+              request.cookies.set(name, value)
+            );
+            supabaseResponse = NextResponse.next({ request });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options)
+            );
+          },
+        },
+      }
+    );
+
+    // IMPORTANT: Do NOT use supabase.auth.getSession() here.
+    // getUser() sends a request to the Supabase Auth server every time
+    // to revalidate the Auth token, while getSession() does not.
+    const { data, error: authError } = await supabase.auth.getUser();
+    const user = data?.user ?? null;
+
+    if (!user && !isPublicRoute) {
+      // Unauthenticated user trying to access a protected route — redirect to login
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
+  } catch {
+    // If auth check fails (network error, bad config, etc.), redirect to login
+    // unless we're already on a public route
+    if (!isPublicRoute) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;
