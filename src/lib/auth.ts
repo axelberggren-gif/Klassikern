@@ -20,6 +20,16 @@ export interface AuthState {
   signOut: () => Promise<void>;
 }
 
+/** Race a promise against a timeout. Rejects if the timeout fires first. */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 /**
  * React hook that provides the current auth state.
  *
@@ -44,7 +54,6 @@ export function useAuth(): AuthState {
 
     if (error) {
       console.error('[useAuth] fetchProfile error:', error.message, error.code, error);
-      // Retry once on transient errors (network, timeout, etc.)
       if (retries > 0) {
         console.log('[useAuth] Retrying fetchProfile...');
         await new Promise(r => setTimeout(r, 1000));
@@ -63,14 +72,22 @@ export function useAuth(): AuthState {
 
   useEffect(() => {
     const supabase = createClient();
+    console.log('[useAuth] initAuth starting...');
 
     // Get initial session
     const initAuth = async () => {
       try {
+        // Add timeout to getUser() — if Supabase is unreachable, don't hang forever
         const {
           data: { user: currentUser },
           error: userError,
-        } = await supabase.auth.getUser();
+        } = await withTimeout(
+          supabase.auth.getUser(),
+          8000,
+          'supabase.auth.getUser()'
+        );
+
+        console.log('[useAuth] getUser result:', { hasUser: !!currentUser, error: userError?.message ?? 'none' });
 
         if (userError) {
           console.error('[useAuth] getUser error:', userError.message);
@@ -79,7 +96,11 @@ export function useAuth(): AuthState {
         setUser(currentUser);
 
         if (currentUser) {
-          const userProfile = await fetchProfile(currentUser.id);
+          const userProfile = await withTimeout(
+            fetchProfile(currentUser.id),
+            10000,
+            'fetchProfile'
+          );
           setProfile(userProfile);
 
           // If no profile exists at all, sign out (admin must create user properly)
@@ -91,7 +112,7 @@ export function useAuth(): AuthState {
           }
         }
       } catch (err) {
-        // Auth check failed — user is not authenticated
+        // Auth check failed — timeout, network error, etc.
         console.error('[useAuth] initAuth error:', err);
         setUser(null);
         setProfile(null);
