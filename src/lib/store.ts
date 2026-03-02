@@ -11,6 +11,32 @@ import type {
 } from '@/types/database';
 
 // ---------------------------------------------------------------------------
+// Login (anon-accessible)
+// ---------------------------------------------------------------------------
+
+export type LoginProfile = {
+  id: string;
+  display_name: string;
+  avatar_url: string | null;
+  email: string | null;
+};
+
+export async function getLoginProfiles(): Promise<LoginProfile[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, display_name, avatar_url, email')
+    .neq('display_name', '')
+    .order('display_name');
+
+  if (error) {
+    console.error('Error fetching login profiles:', error);
+    return [];
+  }
+  return (data ?? []) as LoginProfile[];
+}
+
+// ---------------------------------------------------------------------------
 // Profile
 // ---------------------------------------------------------------------------
 

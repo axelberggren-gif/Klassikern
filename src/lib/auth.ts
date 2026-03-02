@@ -26,7 +26,6 @@ export interface AuthState {
  * - Subscribes to Supabase auth state changes
  * - Fetches the user's profile from the profiles table
  * - Handles the case where auth session exists but profile doesn't
- *   (redirects to /onboarding)
  * - Provides a signOut function that clears the session and redirects
  */
 export function useAuth(): AuthState {
@@ -44,7 +43,6 @@ export function useAuth(): AuthState {
       .single();
 
     if (error || !data) {
-      // Profile doesn't exist — user needs onboarding
       return null;
     }
 
@@ -67,9 +65,10 @@ export function useAuth(): AuthState {
           const userProfile = await fetchProfile(currentUser.id);
           setProfile(userProfile);
 
-          // If profile has no display name yet, redirect to onboarding
-          if (!userProfile || !userProfile.display_name) {
-            router.replace('/onboarding');
+          // If no profile exists at all, sign out (admin must create user properly)
+          if (!userProfile) {
+            await supabase.auth.signOut();
+            router.replace('/login');
           }
         }
       } catch {

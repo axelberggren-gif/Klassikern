@@ -35,6 +35,7 @@ export interface Database {
           id: string;
           display_name: string;
           avatar_url: string | null;
+          email: string | null;
           goal_vr_hours: number;
           goal_vansbro_minutes: number;
           goal_lidingo_hours: number;
@@ -49,6 +50,7 @@ export interface Database {
           id: string;
           display_name?: string;
           avatar_url?: string | null;
+          email?: string | null;
           goal_vr_hours?: number;
           goal_vansbro_minutes?: number;
           goal_lidingo_hours?: number;
@@ -63,6 +65,7 @@ export interface Database {
           id?: string;
           display_name?: string;
           avatar_url?: string | null;
+          email?: string | null;
           goal_vr_hours?: number;
           goal_vansbro_minutes?: number;
           goal_lidingo_hours?: number;
