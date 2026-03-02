@@ -52,7 +52,8 @@ async function updateSession(request: NextRequest) {
   const isPublicRoute =
     pathname === '/login' ||
     pathname.startsWith('/auth/callback') ||
-    pathname === '/onboarding';
+    pathname === '/onboarding' ||
+    pathname === '/api/strava/webhook';
 
   if (!user && !isPublicRoute) {
     // Unauthenticated user trying to access a protected route — redirect to login
