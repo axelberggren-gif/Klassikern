@@ -1,13 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { getLoginProfiles, type LoginProfile } from '@/lib/store';
 import { Mountain, Lock, AlertCircle, ChevronLeft, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [profiles, setProfiles] = useState<LoginProfile[]>([]);
   const [selectedUser, setSelectedUser] = useState<LoginProfile | null>(null);
   const [password, setPassword] = useState('');
@@ -54,8 +52,8 @@ export default function LoginPage() {
         return;
       }
 
-      router.refresh();
-      router.push('/');
+      // Hard navigation ensures the middleware sees the fresh auth cookies
+      window.location.href = '/';
     } catch {
       setError('Något gick fel. Försök igen.');
       setLoading(false);
