@@ -67,8 +67,8 @@ export function useAuth(): AuthState {
           const userProfile = await fetchProfile(currentUser.id);
           setProfile(userProfile);
 
-          // If profile has default name, redirect to onboarding
-          if (!userProfile || userProfile.display_name === 'Ny användare') {
+          // If profile has no display name yet, redirect to onboarding
+          if (!userProfile || !userProfile.display_name) {
             router.replace('/onboarding');
           }
         }

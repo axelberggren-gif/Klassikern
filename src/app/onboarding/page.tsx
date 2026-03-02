@@ -50,14 +50,20 @@ export default function OnboardingPage() {
       try {
         const supabase = createClient();
 
-        // Update the user's profile in the profiles table
-        await supabase
+        // Upsert the user's profile (handles both new and existing rows)
+        const { error: profileError } = await supabase
           .from('profiles')
-          .update({
+          .upsert({
+            id: authUserId,
             display_name: displayName.trim(),
             avatar_url: selectedAvatar,
-          })
-          .eq('id', authUserId);
+          });
+
+        if (profileError) {
+          console.error('Error saving profile:', profileError);
+          setSaving(false);
+          return;
+        }
 
         const trimmedCode = inviteCode.trim();
 
