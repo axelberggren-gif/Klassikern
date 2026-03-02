@@ -7,7 +7,6 @@ import { NextResponse, type NextRequest } from 'next/server';
  *
  * Public routes (no auth required):
  *  - /login
- *  - /auth/callback
  *  - /onboarding
  *  - Static assets & Next.js internals (_next, favicon, etc.)
  */
@@ -51,7 +50,6 @@ async function updateSession(request: NextRequest) {
   // Allow public routes without authentication
   const isPublicRoute =
     pathname === '/login' ||
-    pathname.startsWith('/auth/callback') ||
     pathname === '/onboarding';
 
   if (!user && !isPublicRoute) {

@@ -8,7 +8,7 @@ A mobile-first fitness tracking webapp for "En Svensk Klassiker" — a Swedish c
 - **Language**: TypeScript, React 19
 - **Styling**: Tailwind CSS 4
 - **Backend**: Supabase (PostgreSQL, Auth, RLS)
-- **Auth**: Magic link (email OTP) via `@supabase/ssr@^0.8.0`
+- **Auth**: Email + password via `@supabase/ssr@^0.8.0` (users created manually in Supabase dashboard)
 - **Icons**: lucide-react
 - **Deploy**: Vercel
 
@@ -19,14 +19,13 @@ src/
 ├── app/                    # Next.js App Router pages
 │   ├── page.tsx            # Dashboard (home)
 │   ├── layout.tsx          # Root layout
-│   ├── login/page.tsx      # Magic link login
+│   ├── login/page.tsx      # Email + password login
 │   ├── onboarding/page.tsx # New user onboarding flow
 │   ├── log/page.tsx        # Log a training session
 │   ├── plan/page.tsx       # Weekly training plan
 │   ├── progress/page.tsx   # Personal stats & progress
 │   ├── group/page.tsx      # Group leaderboard, activity feed, settings
-│   ├── profile/page.tsx    # Profile & settings (editable goals, sign out)
-│   └── auth/callback/      # Supabase auth callback handler
+│   └── profile/page.tsx    # Profile & settings (editable goals, sign out)
 ├── components/
 │   ├── AppShell.tsx         # Layout wrapper (safe area + bottom nav)
 │   ├── BottomNav.tsx        # 5-tab bottom navigation
@@ -88,7 +87,8 @@ export default function MyPage() {
 ### Auth
 - `useAuth()` from `src/lib/auth.ts` provides the authenticated user and their profile
 - Middleware at `src/middleware.ts` handles session refresh and redirects unauthenticated users to `/login`
-- Protected routes: everything except `/login`, `/auth/callback`
+- Protected routes: everything except `/login` and `/onboarding`
+- **No self-registration** — users are created manually in Supabase dashboard: Authentication → Users → Add user
 
 ### Data Layer (src/lib/store.ts)
 All data goes through async functions in `store.ts`. Never use localStorage.
