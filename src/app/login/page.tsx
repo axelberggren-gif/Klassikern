@@ -41,7 +41,7 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error, data } = await supabase.auth.signInWithPassword({
         email: selectedUser.email,
         password,
       });
@@ -51,6 +51,9 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
+
+      console.log('[login] signIn success, session:', !!data.session);
+      console.log('[login] cookies before navigation:', document.cookie.substring(0, 200));
 
       // Hard navigation ensures the middleware sees the fresh auth cookies
       window.location.href = '/';

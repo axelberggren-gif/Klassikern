@@ -1,9 +1,16 @@
 import { defaultCache } from "@serwist/next/worker";
-import type { PrecacheEntry } from "serwist";
-import { Serwist } from "serwist";
+import type { PrecacheEntry, RuntimeCaching } from "serwist";
+import { Serwist, NetworkOnly } from "serwist";
 
 declare const self: ServiceWorkerGlobalScope & {
   __SW_MANIFEST: (PrecacheEntry | string)[];
+};
+
+// Ensure Supabase API requests are NEVER cached by the service worker.
+// These must always go directly to the network for auth and data freshness.
+const supabaseNetworkOnly: RuntimeCaching = {
+  matcher: ({ url }) => url.hostname.includes("supabase.co"),
+  handler: new NetworkOnly(),
 };
 
 const serwist = new Serwist({
@@ -13,11 +20,9 @@ const serwist = new Serwist({
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
-  // Use the default Next.js caching strategies provided by @serwist/next:
-  // - NetworkFirst for pages (HTML and RSC)
-  // - StaleWhileRevalidate for static assets
-  // - NetworkFirst for Next.js data requests
-  runtimeCaching: defaultCache,
+  // Supabase requests bypass cache entirely, then use default Next.js strategies
+  // for everything else (NetworkFirst for pages, StaleWhileRevalidate for assets)
+  runtimeCaching: [supabaseNetworkOnly, ...defaultCache],
 });
 
 serwist.addEventListeners();

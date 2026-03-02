@@ -6,6 +6,9 @@ import { createClient } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '@/types/database';
 
+// Module-level log — runs as soon as this file is imported
+console.log('[auth.ts] module loaded');
+
 /**
  * Auth state returned by the useAuth hook.
  */
@@ -28,12 +31,14 @@ export interface AuthState {
  * so the client doesn't need to re-validate.
  */
 export function useAuth(): AuthState {
+  console.log('[useAuth] hook called');
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
+    console.log('[useAuth] fetchProfile starting for', userId);
     const supabase = createClient();
     const { data, error } = await supabase
       .from('profiles')
@@ -51,20 +56,30 @@ export function useAuth(): AuthState {
       return null;
     }
 
+    console.log('[useAuth] fetchProfile success:', data.display_name);
     return data;
   }, []);
 
   useEffect(() => {
+    console.log('[useAuth] useEffect running');
     const supabase = createClient();
 
     // Get initial session using getSession() — reads from cookies, never hangs.
     // The middleware already calls getUser() to validate the token server-side.
     const initAuth = async () => {
+      console.log('[useAuth] initAuth starting');
       try {
+        console.log('[useAuth] calling getSession...');
         const {
           data: { session },
           error: sessionError,
         } = await supabase.auth.getSession();
+
+        console.log('[useAuth] getSession returned:', {
+          hasSession: !!session,
+          hasUser: !!session?.user,
+          error: sessionError?.message ?? null,
+        });
 
         if (sessionError) {
           console.error('[useAuth] getSession error:', sessionError.message);
@@ -83,12 +98,15 @@ export function useAuth(): AuthState {
             window.location.href = '/login';
             return;
           }
+        } else {
+          console.log('[useAuth] No session found, user is null');
         }
       } catch (err) {
         console.error('[useAuth] initAuth error:', err);
         setUser(null);
         setProfile(null);
       } finally {
+        console.log('[useAuth] initAuth finished, setting loading=false');
         setLoading(false);
       }
     };
@@ -99,6 +117,7 @@ export function useAuth(): AuthState {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[useAuth] onAuthStateChange:', event, !!session);
       const sessionUser = session?.user ?? null;
       setUser(sessionUser);
 
