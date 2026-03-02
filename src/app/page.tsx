@@ -1,65 +1,130 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import AppShell from '@/components/AppShell';
+import StreakBadge from '@/components/dashboard/StreakBadge';
+import TodayCard from '@/components/dashboard/TodayCard';
+import WeekSummary from '@/components/dashboard/WeekSummary';
+import ExpeditionProgress from '@/components/dashboard/ExpeditionProgress';
+import ActivityFeed from '@/components/dashboard/ActivityFeed';
+import { useAuth } from '@/lib/auth';
+import { getGroupMembers, getUserSessions, getActivityFeed, getUserGroupId } from '@/lib/store';
+import { getCurrentWeekNumber, getPlanForWeek } from '@/lib/training-plan';
+import type { Profile, PlannedSession, Session, ActivityFeedItemWithUser } from '@/types/database';
+
+export default function DashboardPage() {
+  const { user, profile, loading } = useAuth();
+  const [members, setMembers] = useState<Profile[]>([]);
+  const [todayPlan, setTodayPlan] = useState<PlannedSession[]>([]);
+  const [todaySessions, setTodaySessions] = useState<Session[]>([]);
+  const [weekPlan, setWeekPlan] = useState<PlannedSession[]>([]);
+  const [weekSessions, setWeekSessions] = useState<Session[]>([]);
+  const [feed, setFeed] = useState<ActivityFeedItemWithUser[]>([]);
+  const [weekNumber, setWeekNumber] = useState(1);
+  const [totalSessions, setTotalSessions] = useState(0);
+
+  useEffect(() => {
+    if (!user || !profile) return;
+
+    const loadData = async () => {
+      const wk = getCurrentWeekNumber();
+      const today = new Date().toISOString().split('T')[0];
+      setWeekNumber(wk);
+
+      // Today's plan
+      const plan = getPlanForWeek(wk);
+      const todayDay = new Date().getDay();
+      // Convert JS day (0=Sun) to our format (1=Mon, 7=Sun)
+      const ourDay = todayDay === 0 ? 7 : todayDay;
+      setTodayPlan(plan.filter((p) => p.day_of_week === ourDay));
+      setWeekPlan(plan);
+
+      // Async data loading
+      const [sessions, groupMembers, groupId] = await Promise.all([
+        getUserSessions(user.id),
+        getGroupMembers(user.id),
+        getUserGroupId(user.id),
+      ]);
+
+      setTotalSessions(sessions.length);
+      setTodaySessions(sessions.filter((s) => s.date === today));
+
+      // Week sessions
+      const weekStart = new Date(2026, 1, 23);
+      weekStart.setDate(weekStart.getDate() + (wk - 1) * 7);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      setWeekSessions(
+        sessions.filter((s) => {
+          const d = new Date(s.date);
+          return d >= weekStart && d < weekEnd;
+        })
+      );
+
+      setMembers(groupMembers);
+
+      if (groupId) {
+        const feedData = await getActivityFeed(groupId);
+        setFeed(feedData);
+      }
+    };
+
+    loadData();
+  }, [user, profile]);
+
+  if (loading || !profile) return null;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <AppShell>
+      {/* Header */}
+      <div className="bg-gradient-to-b from-orange-500 to-orange-600 px-5 pt-12 pb-6 text-white">
+        <div className="flex items-center justify-between mb-1">
+          <Link href="/profile" className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-sm font-bold">
+              {profile.display_name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <p className="text-sm opacity-80">Hej, {profile.display_name}!</p>
+              <h1 className="text-2xl font-bold">Klassikern</h1>
+            </div>
+          </Link>
+          <StreakBadge streak={profile.current_streak} />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <p className="text-xs opacity-70 mt-1">
+          Vasaloppet ✅ · Vätternrundan ⏳ · Vansbro ⏳ · Lidingö ⏳
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-4 px-4 -mt-3">
+        {/* Today's session card */}
+        <TodayCard todayPlan={todayPlan} todaySessions={todaySessions} />
+
+        {/* Week summary */}
+        <WeekSummary weekPlan={weekPlan} weekSessions={weekSessions} weekNumber={weekNumber} />
+
+        {/* Expedition progress */}
+        <ExpeditionProgress users={members} currentUserId={user!.id} />
+
+        {/* Activity feed */}
+        <ActivityFeed items={feed} />
+
+        {/* Quick stats */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl bg-blue-50 p-3 text-center">
+            <p className="text-2xl font-bold text-blue-600">{profile.total_ep}</p>
+            <p className="text-[10px] font-medium text-blue-500">EP totalt</p>
+          </div>
+          <div className="rounded-xl bg-green-50 p-3 text-center">
+            <p className="text-2xl font-bold text-green-600">{totalSessions}</p>
+            <p className="text-[10px] font-medium text-green-500">Pass</p>
+          </div>
+          <div className="rounded-xl bg-amber-50 p-3 text-center">
+            <p className="text-2xl font-bold text-amber-600">{profile.longest_streak}</p>
+            <p className="text-[10px] font-medium text-amber-500">Längsta streak</p>
+          </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }
