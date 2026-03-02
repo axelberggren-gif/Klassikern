@@ -33,6 +33,7 @@ export default function LoginPage() {
         return;
       }
 
+      router.refresh();
       router.push('/');
     } catch {
       setError('Något gick fel. Försök igen.');
