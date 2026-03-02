@@ -20,23 +20,12 @@ export interface AuthState {
   signOut: () => Promise<void>;
 }
 
-/** Race a promise against a timeout. Rejects if the timeout fires first. */
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
-    ),
-  ]);
-}
-
 /**
  * React hook that provides the current auth state.
  *
- * - Subscribes to Supabase auth state changes
- * - Fetches the user's profile from the profiles table
- * - Handles the case where auth session exists but profile doesn't
- * - Provides a signOut function that clears the session and redirects
+ * Uses getSession() on the client side (reads local cookies, fast and reliable).
+ * The middleware already validates the token with getUser() on every request,
+ * so the client doesn't need to re-validate.
  */
 export function useAuth(): AuthState {
   const router = useRouter();
@@ -44,7 +33,7 @@ export function useAuth(): AuthState {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId: string, retries = 1): Promise<Profile | null> => {
+  const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
     const supabase = createClient();
     const { data, error } = await supabase
       .from('profiles')
@@ -53,12 +42,7 @@ export function useAuth(): AuthState {
       .single();
 
     if (error) {
-      console.error('[useAuth] fetchProfile error:', error.message, error.code, error);
-      if (retries > 0) {
-        console.log('[useAuth] Retrying fetchProfile...');
-        await new Promise(r => setTimeout(r, 1000));
-        return fetchProfile(userId, retries - 1);
-      }
+      console.error('[useAuth] fetchProfile error:', error.message, error.code);
       return null;
     }
 
@@ -72,38 +56,27 @@ export function useAuth(): AuthState {
 
   useEffect(() => {
     const supabase = createClient();
-    console.log('[useAuth] initAuth starting...');
 
-    // Get initial session
+    // Get initial session using getSession() — reads from cookies, never hangs.
+    // The middleware already calls getUser() to validate the token server-side.
     const initAuth = async () => {
       try {
-        // Add timeout to getUser() — if Supabase is unreachable, don't hang forever
         const {
-          data: { user: currentUser },
-          error: userError,
-        } = await withTimeout(
-          supabase.auth.getUser(),
-          8000,
-          'supabase.auth.getUser()'
-        );
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
 
-        console.log('[useAuth] getUser result:', { hasUser: !!currentUser, error: userError?.message ?? 'none' });
-
-        if (userError) {
-          console.error('[useAuth] getUser error:', userError.message);
+        if (sessionError) {
+          console.error('[useAuth] getSession error:', sessionError.message);
         }
 
+        const currentUser = session?.user ?? null;
         setUser(currentUser);
 
         if (currentUser) {
-          const userProfile = await withTimeout(
-            fetchProfile(currentUser.id),
-            10000,
-            'fetchProfile'
-          );
+          const userProfile = await fetchProfile(currentUser.id);
           setProfile(userProfile);
 
-          // If no profile exists at all, sign out (admin must create user properly)
           if (!userProfile) {
             console.warn('[useAuth] No profile found, signing out');
             await supabase.auth.signOut();
@@ -112,7 +85,6 @@ export function useAuth(): AuthState {
           }
         }
       } catch (err) {
-        // Auth check failed — timeout, network error, etc.
         console.error('[useAuth] initAuth error:', err);
         setUser(null);
         setProfile(null);
