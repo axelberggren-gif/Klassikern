@@ -332,7 +332,7 @@ create table expedition_waypoints (
 create or replace function handle_new_user()
 returns trigger as $$
 begin
-  insert into profiles (id, display_name, avatar_url)
+  insert into public.profiles (id, display_name, avatar_url)
   values (
     new.id,
     coalesce(new.raw_user_meta_data ->> 'display_name', new.raw_user_meta_data ->> 'full_name', ''),
@@ -340,7 +340,7 @@ begin
   );
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 create trigger on_auth_user_created
   after insert on auth.users
