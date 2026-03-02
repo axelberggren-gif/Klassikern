@@ -95,8 +95,6 @@ export function useAuth(): AuthState {
           console.error('[useAuth] profile fetch failed:', error?.message ?? 'no data');
           setProfile(null);
           setLoading(false);
-          // Redirect to login — don't attempt signOut (it can also fail/hang)
-          window.location.href = '/login';
           return;
         }
 
