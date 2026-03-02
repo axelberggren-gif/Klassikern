@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '@/types/database';
 
-// Module-level log — runs as soon as this file is imported
 console.log('[auth.ts] module loaded');
 
 /**
@@ -26,9 +25,12 @@ export interface AuthState {
 /**
  * React hook that provides the current auth state.
  *
- * Uses getSession() on the client side (reads local cookies, fast and reliable).
- * The middleware already validates the token with getUser() on every request,
- * so the client doesn't need to re-validate.
+ * Architecture:
+ *  - Effect 1: onAuthStateChange sets the user (synchronous, no DB calls)
+ *  - Effect 2: when user changes, fetch profile in a separate async context
+ *
+ * This avoids a deadlock in @supabase/ssr v0.8.0 where both getSession()
+ * and database queries hang when called inside onAuthStateChange.
  */
 export function useAuth(): AuthState {
   console.log('[useAuth] hook called');
@@ -37,99 +39,30 @@ export function useAuth(): AuthState {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
-    console.log('[useAuth] fetchProfile starting for', userId);
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('[useAuth] fetchProfile error:', error.message, error.code);
-      return null;
-    }
-
-    if (!data) {
-      console.error('[useAuth] fetchProfile: no data returned for user', userId);
-      return null;
-    }
-
-    console.log('[useAuth] fetchProfile success:', data.display_name);
-    return data;
-  }, []);
-
+  // Effect 1: Listen for auth state changes — synchronous only, no DB calls.
   useEffect(() => {
-    console.log('[useAuth] useEffect running');
+    console.log('[useAuth] auth effect running');
     const supabase = createClient();
+    let isFirstEvent = true;
 
-    // Get initial session using getSession() — reads from cookies, never hangs.
-    // The middleware already calls getUser() to validate the token server-side.
-    const initAuth = async () => {
-      console.log('[useAuth] initAuth starting');
-      try {
-        console.log('[useAuth] calling getSession...');
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
-
-        console.log('[useAuth] getSession returned:', {
-          hasSession: !!session,
-          hasUser: !!session?.user,
-          error: sessionError?.message ?? null,
-        });
-
-        if (sessionError) {
-          console.error('[useAuth] getSession error:', sessionError.message);
-        }
-
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-
-        if (currentUser) {
-          const userProfile = await fetchProfile(currentUser.id);
-          setProfile(userProfile);
-
-          if (!userProfile) {
-            console.warn('[useAuth] No profile found, signing out');
-            await supabase.auth.signOut();
-            window.location.href = '/login';
-            return;
-          }
-        } else {
-          console.log('[useAuth] No session found, user is null');
-        }
-      } catch (err) {
-        console.error('[useAuth] initAuth error:', err);
-        setUser(null);
-        setProfile(null);
-      } finally {
-        console.log('[useAuth] initAuth finished, setting loading=false');
-        setLoading(false);
-      }
-    };
-
-    initAuth();
-
-    // Subscribe to auth state changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[useAuth] onAuthStateChange:', event, !!session);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[useAuth] onAuthStateChange:', event, '| hasSession:', !!session);
+
       const sessionUser = session?.user ?? null;
       setUser(sessionUser);
 
-      if (sessionUser) {
-        const userProfile = await fetchProfile(sessionUser.id);
-        setProfile(userProfile);
-      } else {
-        setProfile(null);
+      // If no user on initial event, we're done loading
+      if (isFirstEvent && !sessionUser) {
+        console.log('[useAuth] no user on initial event, setting loading=false');
+        setLoading(false);
       }
+      isFirstEvent = false;
 
       if (event === 'SIGNED_OUT') {
         setProfile(null);
+        setLoading(false);
         router.replace('/login');
       }
     });
@@ -137,7 +70,45 @@ export function useAuth(): AuthState {
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchProfile, router]);
+  }, [router]);
+
+  // Effect 2: Fetch profile when user changes (runs OUTSIDE onAuthStateChange).
+  useEffect(() => {
+    if (!user) {
+      setProfile(null);
+      return;
+    }
+
+    console.log('[useAuth] user changed, fetching profile for', user.id);
+    const supabase = createClient();
+    let cancelled = false;
+
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+
+        if (error || !data) {
+          console.error('[useAuth] profile fetch failed:', error?.message ?? 'no data');
+          setProfile(null);
+          setLoading(false);
+          // Redirect to login — don't attempt signOut (it can also fail/hang)
+          window.location.href = '/login';
+          return;
+        }
+
+        console.log('[useAuth] profile loaded:', data.display_name);
+        setProfile(data);
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const signOut = useCallback(async () => {
     const supabase = createClient();
