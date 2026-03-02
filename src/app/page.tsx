@@ -73,6 +73,14 @@ export default function DashboardPage() {
     loadData();
   }, [user, profile]);
 
+  // Redirect to login if auth finished but no profile (useAuth should handle this,
+  // but this is a safety net to prevent infinite spinner)
+  useEffect(() => {
+    if (!loading && !profile) {
+      window.location.href = '/login';
+    }
+  }, [loading, profile]);
+
   if (loading || !profile) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">

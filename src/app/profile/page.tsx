@@ -178,6 +178,12 @@ export default function ProfilePage() {
     );
   }, [user]);
 
+  useEffect(() => {
+    if (!loading && !profile) {
+      window.location.href = '/login';
+    }
+  }, [loading, profile]);
+
   if (loading || !profile) return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">

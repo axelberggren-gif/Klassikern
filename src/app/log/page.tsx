@@ -104,6 +104,12 @@ export default function LogSessionPage() {
   const streakMultiplier =
     currentStreak >= 7 ? 1.3 : currentStreak >= 5 ? 1.2 : currentStreak >= 3 ? 1.1 : 1;
 
+  useEffect(() => {
+    if (!loading && !profile) {
+      window.location.href = '/login';
+    }
+  }, [loading, profile]);
+
   if (loading) return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">

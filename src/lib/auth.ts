@@ -34,7 +34,7 @@ export function useAuth(): AuthState {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string, retries = 1): Promise<Profile | null> => {
     const supabase = createClient();
     const { data, error } = await supabase
       .from('profiles')
@@ -43,7 +43,13 @@ export function useAuth(): AuthState {
       .single();
 
     if (error) {
-      console.error('[useAuth] fetchProfile error:', error.message, error.code);
+      console.error('[useAuth] fetchProfile error:', error.message, error.code, error);
+      // Retry once on transient errors (network, timeout, etc.)
+      if (retries > 0) {
+        console.log('[useAuth] Retrying fetchProfile...');
+        await new Promise(r => setTimeout(r, 1000));
+        return fetchProfile(userId, retries - 1);
+      }
       return null;
     }
 

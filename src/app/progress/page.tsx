@@ -98,6 +98,12 @@ export default function ProgressPage() {
     getUserStats(user.id).then(setStats);
   }, [user]);
 
+  useEffect(() => {
+    if (!loading && !profile) {
+      window.location.href = '/login';
+    }
+  }, [loading, profile]);
+
   if (loading || !profile || !stats) return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
