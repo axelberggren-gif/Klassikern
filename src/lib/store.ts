@@ -1,8 +1,12 @@
 import { createClient } from '@/lib/supabase';
 import { calculateEP } from './ep-calculator';
+import { checkAndAwardBadges } from './badge-checker';
 import type {
   Profile,
   Session,
+  Badge,
+  UserBadgeWithBadge,
+  StravaConnection,
   ActivityFeedItemWithUser,
   GroupDetails,
   GroupMemberWithProfile,
@@ -136,6 +140,11 @@ export async function getUserSessions(
   return data ?? [];
 }
 
+export interface LogSessionResult {
+  session: Session;
+  newBadges: string[];
+}
+
 export async function logSession(params: {
   userId: string;
   groupId: string | null;
@@ -146,7 +155,7 @@ export async function logSession(params: {
   effortRating: EffortRating;
   note: string;
   plannedSessionId: string | null;
-}): Promise<Session | null> {
+}): Promise<LogSessionResult | null> {
   const supabase = createClient();
 
   const ep = calculateEP(
@@ -208,7 +217,10 @@ export async function logSession(params: {
     });
   }
 
-  return session;
+  // 4. Check and award badges
+  const newBadges = await checkAndAwardBadges(params.userId);
+
+  return { session, newBadges };
 }
 
 // ---------------------------------------------------------------------------
@@ -583,4 +595,100 @@ export async function createGroup(
   }
 
   return { success: true, groupId: newGroup.id };
+}
+
+// ---------------------------------------------------------------------------
+// Badges
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch all badge definitions.
+ */
+export async function getAllBadges(): Promise<Badge[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('badges')
+    .select('*')
+    .order('category')
+    .order('name');
+
+  if (error) {
+    console.error('Error fetching badges:', error);
+    return [];
+  }
+  return data ?? [];
+}
+
+/**
+ * Fetch all badges earned by a user, including badge details.
+ */
+export async function getUserBadges(
+  userId: string
+): Promise<UserBadgeWithBadge[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('user_badges')
+    .select('*, badges(*)')
+    .eq('user_id', userId)
+    .order('earned_at', { ascending: false });
+
+  if (error || !data) {
+    console.error('Error fetching user badges:', error);
+    return [];
+  }
+
+  // Supabase returns { ...userBadge, badges: { ...badgeData } }
+  // We need to map badges -> badge for the UserBadgeWithBadge type.
+  return data.map((item) => {
+    const { badges: badgeData, ...userBadgeFields } = item as Record<string, unknown>;
+    return {
+      ...userBadgeFields,
+      badge: badgeData as Badge,
+    } as UserBadgeWithBadge;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Strava connection
+// ---------------------------------------------------------------------------
+
+/**
+ * Get the Strava connection for a user.
+ * Returns null if no connection exists.
+ */
+export async function getStravaConnection(
+  userId: string
+): Promise<StravaConnection | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('strava_connections')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching Strava connection:', error);
+    return null;
+  }
+  return data;
+}
+
+/**
+ * Disconnect Strava by deleting the connection row.
+ * Returns true on success, false on failure.
+ */
+export async function disconnectStrava(
+  userId: string
+): Promise<boolean> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('strava_connections')
+    .delete()
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error disconnecting Strava:', error);
+    return false;
+  }
+  return true;
 }

@@ -14,13 +14,16 @@ import {
   Pencil,
   Check,
   Bell,
-  Link2,
   Palette,
   LogOut,
+  Lock,
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import { getBadgeIcon } from '@/components/BadgeUnlockModal';
+import StravaConnect from '@/components/StravaConnect';
 import { useAuth } from '@/lib/auth';
-import { updateCurrentUser } from '@/lib/store';
+import { updateCurrentUser, getUserBadges, getAllBadges } from '@/lib/store';
+import type { Badge, UserBadgeWithBadge } from '@/types/database';
 
 // ---------------------------------------------------------------------------
 // Inline editable field component
@@ -162,8 +165,22 @@ function PlaceholderRow({
 export default function ProfilePage() {
   const router = useRouter();
   const { user, profile, loading, signOut } = useAuth();
+  const [allBadgeDefs, setAllBadgeDefs] = useState<Badge[]>([]);
+  const [earnedBadges, setEarnedBadges] = useState<UserBadgeWithBadge[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    Promise.all([getAllBadges(), getUserBadges(user.id)]).then(
+      ([badges, userBadges]) => {
+        setAllBadgeDefs(badges);
+        setEarnedBadges(userBadges);
+      }
+    );
+  }, [user]);
 
   if (loading || !profile) return null;
+
+  const earnedBadgeIds = new Set(earnedBadges.map((ub) => ub.badge_id));
 
   const memberSince = new Date(profile.created_at).toLocaleDateString('sv-SE', {
     year: 'numeric',
@@ -261,6 +278,66 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Badges card */}
+        {allBadgeDefs.length > 0 && (
+          <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-700">Badges</h3>
+              <span className="text-xs font-medium text-gray-400">
+                {earnedBadges.length}/{allBadgeDefs.length}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {allBadgeDefs.map((badge) => {
+                const earned = earnedBadgeIds.has(badge.id);
+                const userBadge = earnedBadges.find(
+                  (ub) => ub.badge_id === badge.id
+                );
+                const Icon = earned ? getBadgeIcon(badge.icon_key) : Lock;
+
+                return (
+                  <div
+                    key={badge.id}
+                    className={`flex flex-col items-center gap-1.5 rounded-xl p-3 text-center transition-all ${
+                      earned
+                        ? 'bg-gradient-to-b from-orange-50 to-amber-50 border border-orange-100'
+                        : 'bg-gray-50 border border-gray-100 opacity-50'
+                    }`}
+                  >
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                        earned
+                          ? 'bg-gradient-to-br from-orange-400 to-amber-500'
+                          : 'bg-gray-200'
+                      }`}
+                    >
+                      <Icon
+                        size={18}
+                        className={earned ? 'text-white' : 'text-gray-400'}
+                      />
+                    </div>
+                    <span
+                      className={`text-[11px] font-semibold leading-tight ${
+                        earned ? 'text-gray-800' : 'text-gray-400'
+                      }`}
+                    >
+                      {badge.name}
+                    </span>
+                    {earned && userBadge && (
+                      <span className="text-[9px] text-gray-400">
+                        {new Date(userBadge.earned_at).toLocaleDateString(
+                          'sv-SE',
+                          { day: 'numeric', month: 'short' }
+                        )}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Goals card */}
         <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
           <h3 className="text-sm font-semibold text-gray-700 mb-4">
@@ -317,6 +394,9 @@ export default function ProfilePage() {
           />
         </div>
 
+        {/* Strava connection */}
+        {user && <StravaConnect userId={user.id} />}
+
         {/* Settings card */}
         <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
           <h3 className="text-sm font-semibold text-gray-700 mb-2">
@@ -324,7 +404,6 @@ export default function ProfilePage() {
           </h3>
           <div className="divide-y divide-gray-100">
             <PlaceholderRow icon={Bell} label="Notifikationer" />
-            <PlaceholderRow icon={Link2} label="Strava-koppling" />
             <PlaceholderRow icon={Palette} label="Tema" />
           </div>
         </div>

@@ -192,6 +192,7 @@ export interface Database {
           note: string | null;
           ep_earned: number;
           is_bonus: boolean;
+          strava_activity_id: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -207,6 +208,7 @@ export interface Database {
           note?: string | null;
           ep_earned?: number;
           is_bonus?: boolean;
+          strava_activity_id?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -222,6 +224,7 @@ export interface Database {
           note?: string | null;
           ep_earned?: number;
           is_bonus?: boolean;
+          strava_activity_id?: number | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -415,6 +418,41 @@ export interface Database {
         };
         Relationships: [];
       };
+      strava_connections: {
+        Row: {
+          id: string;
+          user_id: string;
+          strava_athlete_id: number;
+          access_token: string;
+          refresh_token: string;
+          token_expires_at: string;
+          scope: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          strava_athlete_id: number;
+          access_token: string;
+          refresh_token: string;
+          token_expires_at: string;
+          scope?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          strava_athlete_id?: number;
+          access_token?: string;
+          refresh_token?: string;
+          token_expires_at?: string;
+          scope?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -448,6 +486,7 @@ export type ActivityFeedItem = Database['public']['Tables']['activity_feed']['Ro
 export type FeedReaction = Database['public']['Tables']['feed_reactions']['Row'];
 export type WeeklyChallenge = Database['public']['Tables']['weekly_challenges']['Row'];
 export type ExpeditionWaypoint = Database['public']['Tables']['expedition_waypoints']['Row'];
+export type StravaConnection = Database['public']['Tables']['strava_connections']['Row'];
 
 // Backward-compatible alias: the old code uses "User" instead of "Profile".
 // The mock-data / localStorage layer also uses group_id on users, even though
@@ -472,6 +511,8 @@ export type PlannedSessionInsert = Database['public']['Tables']['planned_session
 export type ActivityFeedInsert = Database['public']['Tables']['activity_feed']['Insert'];
 export type FeedReactionInsert = Database['public']['Tables']['feed_reactions']['Insert'];
 export type UserBadgeInsert = Database['public']['Tables']['user_badges']['Insert'];
+export type StravaConnectionInsert = Database['public']['Tables']['strava_connections']['Insert'];
+export type StravaConnectionUpdate = Database['public']['Tables']['strava_connections']['Update'];
 
 // ---------------------------------------------------------------------------
 // Joined / extended types for queries

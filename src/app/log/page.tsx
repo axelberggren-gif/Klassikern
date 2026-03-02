@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Minus, Plus, ArrowLeft } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import SessionReward from '@/components/SessionReward';
+import BadgeUnlockModal from '@/components/BadgeUnlockModal';
 import { SPORT_CONFIG, EFFORT_LABELS, ACTIVE_SPORT_TYPES } from '@/lib/sport-config';
 import { useAuth } from '@/lib/auth';
-import { logSession, getUserGroupId } from '@/lib/store';
+import { logSession, getUserGroupId, getAllBadges } from '@/lib/store';
 import { getCurrentWeekNumber, getPlanForWeek } from '@/lib/training-plan';
-import type { SportType, EffortRating, Session, PlannedSession } from '@/types/database';
+import type { SportType, EffortRating, Session, Badge, PlannedSession } from '@/types/database';
 
 export default function LogSessionPage() {
   const router = useRouter();
@@ -21,6 +22,8 @@ export default function LogSessionPage() {
   const [note, setNote] = useState('');
   const [todayPlanned, setTodayPlanned] = useState<PlannedSession | null>(null);
   const [reward, setReward] = useState<Session | null>(null);
+  const [pendingBadges, setPendingBadges] = useState<Badge[]>([]);
+  const [currentBadge, setCurrentBadge] = useState<Badge | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
 
@@ -48,7 +51,7 @@ export default function LogSessionPage() {
     if (!user || !profile || submitting) return;
     setSubmitting(true);
 
-    const session = await logSession({
+    const result = await logSession({
       userId: user.id,
       groupId,
       currentProfile: profile,
@@ -61,8 +64,38 @@ export default function LogSessionPage() {
     });
 
     setSubmitting(false);
-    if (session) {
-      setReward(session);
+    if (result) {
+      setReward(result.session);
+
+      // If new badges were earned, load their definitions for display
+      if (result.newBadges.length > 0) {
+        const allBadgeDefs = await getAllBadges();
+        const earned = allBadgeDefs.filter((b) =>
+          result.newBadges.includes(b.name)
+        );
+        setPendingBadges(earned);
+      }
+    }
+  }
+
+  // Show badge modals one at a time after the session reward is dismissed
+  function handleRewardDone() {
+    setReward(null);
+    if (pendingBadges.length > 0) {
+      setCurrentBadge(pendingBadges[0]);
+      setPendingBadges((prev) => prev.slice(1));
+    } else {
+      router.push('/');
+    }
+  }
+
+  function handleBadgeDismiss() {
+    if (pendingBadges.length > 0) {
+      setCurrentBadge(pendingBadges[0]);
+      setPendingBadges((prev) => prev.slice(1));
+    } else {
+      setCurrentBadge(null);
+      router.push('/');
     }
   }
 
@@ -78,7 +111,14 @@ export default function LogSessionPage() {
       {reward && (
         <SessionReward
           session={reward}
-          onDone={() => router.push('/')}
+          onDone={handleRewardDone}
+        />
+      )}
+
+      {currentBadge && (
+        <BadgeUnlockModal
+          badge={currentBadge}
+          onDismiss={handleBadgeDismiss}
         />
       )}
 
