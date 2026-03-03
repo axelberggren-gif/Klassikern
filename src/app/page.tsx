@@ -6,7 +6,7 @@ import AppShell from '@/components/AppShell';
 import StreakBadge from '@/components/dashboard/StreakBadge';
 import TodayCard from '@/components/dashboard/TodayCard';
 import WeekSummary from '@/components/dashboard/WeekSummary';
-import ExpeditionProgress from '@/components/dashboard/ExpeditionProgress';
+import ExpeditionMap from '@/components/dashboard/ExpeditionMap';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import { useAuth } from '@/lib/auth';
 import { getGroupMembers, getUserSessions, getActivityFeed, getUserGroupId } from '@/lib/store';
@@ -103,8 +103,8 @@ export default function DashboardPage() {
         {/* Week summary */}
         <WeekSummary weekPlan={weekPlan} weekSessions={weekSessions} weekNumber={weekNumber} />
 
-        {/* Expedition progress */}
-        <ExpeditionProgress users={members} currentUserId={user!.id} />
+        {/* Expedition map */}
+        <ExpeditionMap users={members} currentUserId={user!.id} />
 
         {/* Activity feed */}
         <ActivityFeed items={feed} />
