@@ -2,7 +2,7 @@
 
 import { MapPin, Mountain } from 'lucide-react';
 import type { Profile } from '@/types/database';
-import { EXPEDITION_WAYPOINTS } from '@/lib/mock-data';
+import { EXPEDITION_WAYPOINTS } from '@/lib/expedition-waypoints';
 
 interface ExpeditionProgressProps {
   users: Profile[];
