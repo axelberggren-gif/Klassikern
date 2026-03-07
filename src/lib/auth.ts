@@ -58,18 +58,21 @@ export function useAuth(): AuthState {
   useEffect(() => {
     const supabase = createClient();
 
-    // Get initial session
+    // Get initial session using getSession() (reads from cookies, no network call).
+    // The middleware already validates the token server-side with getUser(),
+    // so a local session check is safe and avoids network failures/hangs.
     const initAuth = async () => {
       try {
         const {
-          data: { user: currentUser },
-          error: userError,
-        } = await supabase.auth.getUser();
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
 
-        if (userError) {
-          console.error('[useAuth] getUser error:', userError.message);
+        if (sessionError) {
+          console.error('[useAuth] getSession error:', sessionError.message);
         }
 
+        const currentUser = session?.user ?? null;
         setUser(currentUser);
 
         if (currentUser) {
