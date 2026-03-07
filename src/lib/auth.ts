@@ -83,12 +83,22 @@ export function useAuth(): AuthState {
             window.location.href = '/login';
             return;
           }
+        } else {
+          // No authenticated user — redirect to login to avoid stuck loading state
+          const pathname = window.location.pathname;
+          if (pathname !== '/login' && pathname !== '/onboarding') {
+            router.replace('/login');
+          }
         }
       } catch (err) {
         // Auth check failed — user is not authenticated
         console.error('[useAuth] initAuth error:', err);
         setUser(null);
         setProfile(null);
+        const pathname = window.location.pathname;
+        if (pathname !== '/login' && pathname !== '/onboarding') {
+          router.replace('/login');
+        }
       } finally {
         setLoading(false);
       }
