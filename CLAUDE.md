@@ -89,6 +89,7 @@ export default function MyPage() {
 - Middleware at `src/middleware.ts` handles session refresh and redirects unauthenticated users to `/login`
 - Protected routes: everything except `/login` and `/onboarding`
 - **No self-registration** — users are created manually in Supabase dashboard: Authentication → Users → Add user
+- **IMPORTANT**: The `useAuth` hook must use `getUser()` (server call) instead of `getSession()` (cookie-only) for the initial auth check. Using `getSession()` causes "stuck on loading" on Vercel preview deployments because Vercel Deployment Protection, the @serwist/next service worker, and Supabase's `navigator.locks` interfere with cookie-based session reads. This is a recurring issue — do NOT switch back to `getSession()`.
 
 ### Data Layer (src/lib/store.ts)
 All data goes through async functions in `store.ts`. Never use localStorage.
@@ -159,6 +160,10 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
+## Known Issues
+
+- **Vercel preview "stuck on loading" after login**: Caused by `getSession()` (cookie-only reads) failing on preview deployments due to Vercel Deployment Protection + @serwist service worker + Supabase `navigator.locks` interference. Fix: use `getUser()` (makes a server call) in `useAuth` hook instead. If this recurs, also try: clearing the service worker in DevTools → Application → Service Workers, or testing in incognito mode.
+
 ## Important Notes
 
 - Always run `npm run build` after changes to verify TypeScript compiles
@@ -166,3 +171,4 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 - When adding new Supabase query functions, add them to `src/lib/store.ts`
 - When adding new types, add them to `src/types/database.ts`
 - The `User` type is a legacy alias for `Profile & { group_id }` — prefer using `Profile` directly
+- When adding Supabase Edge Functions (Deno), add the functions directory to `tsconfig.json` `exclude` to prevent Deno imports from breaking the Next.js build

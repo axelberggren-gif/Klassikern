@@ -57,26 +57,30 @@ export function useAuth(): AuthState {
 
   useEffect(() => {
     const supabase = createClient();
+    let cancelled = false;
 
-    // Get initial session using getSession() (reads from cookies, no network call).
-    // The middleware already validates the token server-side with getUser(),
-    // so a local session check is safe and avoids network failures/hangs.
+    // Use getUser() for the initial check — it makes a server call to validate
+    // the token, which is more reliable than getSession() (cookie-only) on
+    // preview/staging deployments where service workers or deployment
+    // protection can interfere with cookie-based auth.
     const initAuth = async () => {
       try {
         const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
+          data: { user: currentUser },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-        if (sessionError) {
-          console.error('[useAuth] getSession error:', sessionError.message);
+        if (cancelled) return;
+
+        if (userError) {
+          console.error('[useAuth] getUser error:', userError.message);
         }
 
-        const currentUser = session?.user ?? null;
         setUser(currentUser);
 
         if (currentUser) {
           const userProfile = await fetchProfile(currentUser.id);
+          if (cancelled) return;
           setProfile(userProfile);
 
           // If no profile exists at all, sign out (admin must create user properly)
@@ -94,6 +98,7 @@ export function useAuth(): AuthState {
           }
         }
       } catch (err) {
+        if (cancelled) return;
         // Auth check failed — user is not authenticated
         console.error('[useAuth] initAuth error:', err);
         setUser(null);
@@ -103,7 +108,9 @@ export function useAuth(): AuthState {
           router.replace('/login');
         }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
@@ -113,12 +120,13 @@ export function useAuth(): AuthState {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (cancelled) return;
       const sessionUser = session?.user ?? null;
       setUser(sessionUser);
 
       if (sessionUser) {
         const userProfile = await fetchProfile(sessionUser.id);
-        setProfile(userProfile);
+        if (!cancelled) setProfile(userProfile);
       } else {
         setProfile(null);
       }
@@ -130,6 +138,7 @@ export function useAuth(): AuthState {
     });
 
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
     };
   }, [fetchProfile, router]);
