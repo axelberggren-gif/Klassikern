@@ -237,50 +237,82 @@ export default function ExpeditionMap({ users, currentUserId, activeBoss }: Expe
           })}
 
           {/* Boss marker at next waypoint */}
-          {activeBoss && activeBoss.status === 'active' && nextWaypoint && (
-            <g>
-              {/* Pulsing danger ring */}
-              <circle
-                cx={nextWaypoint.map_x}
-                cy={nextWaypoint.map_y}
-                r="3"
-                fill="none"
-                stroke="rgb(239, 68, 68)"
-                strokeWidth="0.4"
-              >
-                <animate
-                  attributeName="r"
-                  from="2"
-                  to="5"
-                  dur="1.5s"
-                  repeatCount="indefinite"
+          {activeBoss && activeBoss.status === 'active' && nextWaypoint && (() => {
+            const bossHp = activeBoss.max_hp > 0
+              ? Math.round((activeBoss.current_hp / activeBoss.max_hp) * 100)
+              : 0;
+            const isLowHp = bossHp < 30;
+            return (
+              <g>
+                {/* Outer danger ring pulse */}
+                <circle
+                  cx={nextWaypoint.map_x}
+                  cy={nextWaypoint.map_y}
+                  r="3"
+                  fill="none"
+                  stroke="rgb(239, 68, 68)"
+                  strokeWidth="0.4"
+                >
+                  <animate attributeName="r" from="2" to="6" dur="1.5s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" from="0.8" to="0" dur="1.5s" repeatCount="indefinite" />
+                </circle>
+                {/* Inner danger ring (staggered) */}
+                <circle
+                  cx={nextWaypoint.map_x}
+                  cy={nextWaypoint.map_y}
+                  r="2"
+                  fill="none"
+                  stroke={isLowHp ? 'rgb(245, 158, 11)' : 'rgb(239, 68, 68)'}
+                  strokeWidth="0.3"
+                >
+                  <animate attributeName="r" from="1.5" to="4.5" dur="1.5s" begin="0.75s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" from="0.6" to="0" dur="1.5s" begin="0.75s" repeatCount="indefinite" />
+                </circle>
+                {/* Dark backing circle for boss */}
+                <circle
+                  cx={nextWaypoint.map_x}
+                  cy={nextWaypoint.map_y}
+                  r="3.5"
+                  fill="rgba(15, 23, 42, 0.7)"
+                  stroke={isLowHp ? 'rgb(245, 158, 11)' : 'rgb(239, 68, 68)'}
+                  strokeWidth="0.4"
                 />
-                <animate
-                  attributeName="opacity"
-                  from="0.8"
-                  to="0"
-                  dur="1.5s"
-                  repeatCount="indefinite"
+                {/* Boss emoji */}
+                <text
+                  x={nextWaypoint.map_x}
+                  y={nextWaypoint.map_y + 1.8}
+                  textAnchor="middle"
+                  fontSize="5.5"
+                  className="select-none"
+                >
+                  <animate
+                    attributeName="y"
+                    values={`${nextWaypoint.map_y + 1.8};${nextWaypoint.map_y + 0.8};${nextWaypoint.map_y + 1.8}`}
+                    dur="2s"
+                    repeatCount="indefinite"
+                  />
+                  {activeBoss.boss.emoji}
+                </text>
+                {/* Mini HP bar under boss */}
+                <rect
+                  x={nextWaypoint.map_x - 4}
+                  y={nextWaypoint.map_y + 4}
+                  width="8"
+                  height="1"
+                  rx="0.5"
+                  fill="rgba(0,0,0,0.3)"
                 />
-              </circle>
-              {/* Boss emoji */}
-              <text
-                x={nextWaypoint.map_x}
-                y={nextWaypoint.map_y + 1.5}
-                textAnchor="middle"
-                fontSize="5"
-                className="select-none"
-              >
-                <animate
-                  attributeName="y"
-                  values={`${nextWaypoint.map_y + 1.5};${nextWaypoint.map_y + 0.5};${nextWaypoint.map_y + 1.5}`}
-                  dur="2s"
-                  repeatCount="indefinite"
+                <rect
+                  x={nextWaypoint.map_x - 4}
+                  y={nextWaypoint.map_y + 4}
+                  width={8 * (bossHp / 100)}
+                  height="1"
+                  rx="0.5"
+                  fill={isLowHp ? 'rgb(245, 158, 11)' : 'rgb(239, 68, 68)'}
                 />
-                {activeBoss.boss.emoji}
-              </text>
-            </g>
-          )}
+              </g>
+            );
+          })()}
 
           {/* Group member markers */}
           {users.map((user, idx) => {
@@ -385,25 +417,48 @@ export default function ExpeditionMap({ users, currentUserId, activeBoss }: Expe
         )}
 
         {/* Boss blocking path */}
-        {activeBoss && activeBoss.status === 'active' && nextWaypoint && (
-          <div className="mt-2 rounded-xl bg-red-50 border border-red-200 px-3 py-2.5 flex items-center gap-3">
-            <span className="text-2xl">{activeBoss.boss.emoji}</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-red-800 truncate">
-                {activeBoss.boss.name} blockerar vägen!
-              </p>
-              <div className="mt-1 h-1.5 w-full rounded-full bg-red-200 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-red-500 to-orange-500 transition-all duration-500"
-                  style={{ width: `${activeBoss.max_hp > 0 ? Math.round((activeBoss.current_hp / activeBoss.max_hp) * 100) : 0}%` }}
-                />
+        {activeBoss && activeBoss.status === 'active' && nextWaypoint && (() => {
+          const hp = activeBoss.max_hp > 0 ? Math.round((activeBoss.current_hp / activeBoss.max_hp) * 100) : 0;
+          const lowHp = hp < 30;
+          return (
+            <div className={`mt-2 rounded-xl border px-3 py-3 flex items-center gap-3 ${
+              lowHp
+                ? 'bg-gradient-to-r from-amber-50 to-red-50 border-amber-300'
+                : 'bg-gradient-to-r from-red-50 to-red-100 border-red-200'
+            }`}>
+              <div className="relative flex-shrink-0">
+                <span className="text-3xl block">{activeBoss.boss.emoji}</span>
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white">
+                  {activeBoss.boss.level}
+                </span>
               </div>
-              <p className="text-[10px] text-red-400 mt-0.5">
-                {activeBoss.current_hp} / {activeBoss.max_hp} HP
-              </p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-red-800 truncate">
+                  {activeBoss.boss.name}
+                </p>
+                <p className="text-[10px] text-red-600 truncate">
+                  Blockerar vägen till {nextWaypoint.name}
+                </p>
+                <div className="mt-1.5 h-2 w-full rounded-full bg-red-200 overflow-hidden relative">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      lowHp
+                        ? 'bg-gradient-to-r from-amber-400 to-orange-500'
+                        : 'bg-gradient-to-r from-red-500 to-orange-500'
+                    }`}
+                    style={{ width: `${hp}%` }}
+                  />
+                </div>
+                <div className="flex justify-between mt-0.5">
+                  <p className="text-[10px] text-red-400">
+                    {activeBoss.current_hp} / {activeBoss.max_hp} HP
+                  </p>
+                  <p className="text-[10px] font-semibold text-red-500">{hp}%</p>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Group member legend */}
         <div className="mt-3 flex flex-wrap gap-2">

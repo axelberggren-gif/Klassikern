@@ -24,8 +24,20 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
   const [displayedDamage, setDisplayedDamage] = useState(0);
   const [showCriticalFlash, setShowCriticalFlash] = useState(false);
   const [showKillingBlow, setShowKillingBlow] = useState(false);
+  const [showScreenShake, setShowScreenShake] = useState(false);
+  const [showParticles, setShowParticles] = useState(false);
   const sport = SPORT_CONFIG[session.sport_type];
   const damageCounterRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const particlesRef = useRef(
+    Array.from({ length: 18 }, () => ({
+      angle: Math.random() * 360,
+      distance: 40 + Math.random() * 40,
+      size: 2 + Math.random() * 2,
+      color: ['#EF4444', '#F97316', '#EAB308', '#FB923C', '#FBBF24', '#DC2626'][Math.floor(Math.random() * 6)],
+      delay: Math.random() * 0.3,
+      duration: 0.7 + Math.random() * 0.5,
+    }))
+  );
 
   const cleanup = useCallback(() => {
     if (damageCounterRef.current) {
@@ -61,6 +73,13 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
     };
   }, [onDone, bossDamage, cleanup]);
 
+  // Phase 2: trigger particles
+  useEffect(() => {
+    if (phase === 2 && bossDamage) {
+      setShowParticles(true);
+    }
+  }, [phase, bossDamage]);
+
   // Phase 2: damage counter animation
   useEffect(() => {
     if (phase !== 2 || !bossDamage) return;
@@ -86,9 +105,14 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
           setTimeout(() => setShowCriticalFlash(false), 600);
         }
 
-        // After counter finishes: killing blow
+        // After counter finishes: killing blow (with screen shake first)
         if (bossDamage.isKillingBlow) {
-          setTimeout(() => setShowKillingBlow(true), bossDamage.isCritical ? 700 : 200);
+          const baseDelay = bossDamage.isCritical ? 700 : 200;
+          setTimeout(() => setShowScreenShake(true), baseDelay);
+          setTimeout(() => {
+            setShowScreenShake(false);
+            setShowKillingBlow(true);
+          }, baseDelay + 500);
         }
       }
       setDisplayedDamage(current);
@@ -140,6 +164,28 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
           70% { transform: scale(0.95); }
           100% { transform: scale(1); opacity: 1; }
         }
+        @keyframes screen-shake {
+          0%, 100% { transform: translate(0, 0) rotate(0deg); }
+          10% { transform: translate(-10px, -6px) rotate(-3deg); }
+          20% { transform: translate(8px, 4px) rotate(2deg); }
+          30% { transform: translate(-6px, 8px) rotate(-2deg); }
+          40% { transform: translate(10px, -4px) rotate(3deg); }
+          50% { transform: translate(-8px, 6px) rotate(-3deg); }
+          60% { transform: translate(6px, -8px) rotate(2deg); }
+          70% { transform: translate(-10px, 2px) rotate(-1deg); }
+          80% { transform: translate(8px, -6px) rotate(3deg); }
+          90% { transform: translate(-4px, 4px) rotate(-2deg); }
+        }
+        @keyframes particle-burst {
+          0% {
+            transform: rotate(var(--angle)) translateY(0px) scale(1);
+            opacity: 1;
+          }
+          100% {
+            transform: rotate(var(--angle)) translateY(calc(-1 * var(--distance))) scale(0);
+            opacity: 0;
+          }
+        }
         .animate-boss-shake {
           animation: boss-shake 0.6s ease-in-out infinite;
         }
@@ -148,6 +194,9 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
         }
         .animate-killing-blow {
           animation: killing-blow-scale 0.6s ease-out forwards;
+        }
+        .animate-screen-shake {
+          animation: screen-shake 0.5s ease-in-out;
         }
       `}</style>
 
@@ -163,7 +212,7 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
         onClick={() => { cleanup(); onDone(); }}
       >
-        <div className="animate-slide-up flex flex-col items-center gap-4 rounded-3xl bg-white p-8 shadow-2xl mx-8 relative overflow-hidden">
+        <div className={`animate-slide-up flex flex-col items-center gap-4 rounded-3xl bg-white p-8 shadow-2xl mx-8 relative overflow-hidden${showScreenShake ? ' animate-screen-shake' : ''}`}>
           {/* Confetti dots — visible in phase 1 */}
           {phase === 1 && (
             <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
@@ -218,9 +267,36 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
           {/* ===== PHASE 2: Boss Damage Beat ===== */}
           {phase === 2 && bossDamage && !showKillingBlow && (
             <>
-              {/* Boss emoji with shake */}
-              <div className="animate-boss-shake text-6xl select-none">
-                {bossDamage.bossEmoji}
+              {/* Boss emoji with shake + attack particles */}
+              <div className="relative">
+                <div className="animate-boss-shake text-6xl select-none">
+                  {bossDamage.bossEmoji}
+                </div>
+
+                {/* Attack particles */}
+                {showParticles && (
+                  <div className="absolute inset-0 pointer-events-none">
+                    {particlesRef.current.map((p, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          width: `${p.size}px`,
+                          height: `${p.size}px`,
+                          borderRadius: '50%',
+                          backgroundColor: p.color,
+                          ['--angle' as string]: `${p.angle}deg`,
+                          ['--distance' as string]: `${p.distance}px`,
+                          animation: `particle-burst ${p.duration}s ease-out ${p.delay}s forwards`,
+                          opacity: 0,
+                          animationFillMode: 'forwards',
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
 
               <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">

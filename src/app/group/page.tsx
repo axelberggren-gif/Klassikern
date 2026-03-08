@@ -18,6 +18,7 @@ import {
   Plus,
   Loader2,
   Swords,
+  Clock,
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
@@ -682,61 +683,154 @@ function BossBattleTab({
   return (
     <div className="flex flex-col gap-4">
       {/* Active Boss Card */}
-      <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-5">
-        <div className="flex items-center gap-4 mb-4">
-          <span className="text-6xl leading-none">{encounter.boss.emoji}</span>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold text-gray-900 truncate">
-                {encounter.boss.name}
-              </h3>
-              {lastStand && (
-                <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 animate-pulse whitespace-nowrap">
-                  {'\u{1F525}'} Last Stand!
+      {(() => {
+        const bossLevel = encounter.boss.level;
+        const tierName = bossLevel <= 5 ? 'Skogsväsen'
+          : bossLevel <= 10 ? 'Bergstroll'
+          : bossLevel <= 15 ? 'Havsväsen'
+          : bossLevel <= 20 ? 'Jotnar'
+          : bossLevel <= 25 ? 'Drömväsen'
+          : 'Ragnarök';
+
+        const now = new Date();
+        const weekEnd = new Date(encounter.week_end);
+        const msLeft = Math.max(0, weekEnd.getTime() - now.getTime());
+        const daysLeft = Math.floor(msLeft / (1000 * 60 * 60 * 24));
+        const hoursLeft = Math.floor((msLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+        const cardBorder = hpPercent < 20
+          ? 'border-2 border-red-500'
+          : 'border border-slate-700';
+
+        const cardBg = hpPercent > 50
+          ? 'bg-gradient-to-br from-slate-900 to-slate-800'
+          : hpPercent > 20
+          ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-amber-950'
+          : 'bg-gradient-to-br from-slate-900 via-red-950 to-slate-800';
+
+        return (
+          <>
+            <style>{`
+              @keyframes boss-pulse-border {
+                0%, 100% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.4), 0 0 20px rgba(239, 68, 68, 0.15); }
+                50% { box-shadow: 0 0 16px rgba(239, 68, 68, 0.7), 0 0 40px rgba(239, 68, 68, 0.3); }
+              }
+              @keyframes boss-hp-pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.7; }
+              }
+              @keyframes boss-glow {
+                0%, 100% { filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.5)); }
+                50% { filter: drop-shadow(0 0 24px rgba(239, 68, 68, 0.8)); }
+              }
+            `}</style>
+            <div
+              className={`rounded-2xl ${cardBg} ${cardBorder} shadow-lg p-5 relative overflow-hidden`}
+              style={hpPercent < 20 ? { animation: 'boss-pulse-border 2s ease-in-out infinite' } : undefined}
+            >
+              {/* Decorative top-right accent */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-red-500/10 to-transparent rounded-bl-full pointer-events-none" />
+
+              {/* Tier & Level Badge */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center rounded-md bg-red-500/20 border border-red-500/30 px-2.5 py-1 text-[11px] font-bold text-red-300 tracking-wide uppercase">
+                    Lvl {bossLevel}
+                  </span>
+                  <span className="inline-flex items-center rounded-md bg-slate-700/60 border border-slate-600/50 px-2.5 py-1 text-[11px] font-semibold text-slate-300 tracking-wide">
+                    {tierName}
+                  </span>
+                </div>
+                {lastStand && (
+                  <span className="inline-flex items-center rounded-full bg-red-500/25 border border-red-500/40 px-2.5 py-1 text-[10px] font-bold text-red-300 animate-pulse whitespace-nowrap">
+                    {'\u{1F525}'} Last Stand!
+                  </span>
+                )}
+              </div>
+
+              {/* Boss Emoji + Name + Lore */}
+              <div className="flex items-start gap-4 mb-4">
+                {/* Emoji with glow */}
+                <div className="relative flex-shrink-0">
+                  <div
+                    className="absolute inset-0 rounded-full"
+                    style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.35) 0%, transparent 70%)', transform: 'scale(1.5)' }}
+                  />
+                  <span
+                    className="relative text-7xl leading-none block"
+                    style={{ animation: 'boss-glow 3s ease-in-out infinite' }}
+                  >
+                    {encounter.boss.emoji}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0 pt-1">
+                  <h3 className="text-xl font-bold text-white truncate">
+                    {encounter.boss.name}
+                  </h3>
+                  <p className="text-sm text-slate-400 mt-1 italic leading-relaxed">
+                    {encounter.boss.lore}
+                  </p>
+                </div>
+              </div>
+
+              {/* HP Bar */}
+              <div className="mb-4">
+                <div className="flex justify-between text-xs mb-1.5">
+                  <span className="font-semibold text-slate-300">HP</span>
+                  <span className="font-mono text-slate-400">
+                    {encounter.current_hp} / {encounter.max_hp}
+                  </span>
+                </div>
+                <div className="h-5 rounded-full bg-slate-700/80 overflow-hidden relative">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-red-600 to-orange-500 transition-all duration-500"
+                    style={{
+                      width: `${hpPercent}%`,
+                      ...(hpPercent < 20 ? { animation: 'boss-hp-pulse 1.5s ease-in-out infinite' } : {}),
+                    }}
+                  />
+                  <span
+                    className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-white"
+                    style={{ textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}
+                  >
+                    {hpPercent}%
+                  </span>
+                </div>
+              </div>
+
+              {/* Tid kvar */}
+              <div className="flex items-center gap-1.5 mb-4 rounded-lg bg-slate-700/50 border border-slate-600/40 px-3 py-2 w-fit">
+                <Clock size={14} className="text-slate-400" />
+                <span className="text-[12px] font-medium text-slate-300">
+                  Tid kvar: {daysLeft > 0 ? `${daysLeft}d ${hoursLeft}h` : `${hoursLeft}h`}
                 </span>
+              </div>
+
+              {/* Weakness / Resistance */}
+              {(encounter.boss.weakness || encounter.boss.resistance) && (
+                <div className="flex flex-wrap gap-3">
+                  {encounter.boss.weakness && (
+                    <div className="flex items-center gap-2 rounded-lg bg-green-500/15 border border-green-500/30 px-3.5 py-2">
+                      <span className="text-base">{SPORT_CONFIG[encounter.boss.weakness]?.icon}</span>
+                      <span className="text-[12px] font-semibold text-green-400">
+                        Svaghet: {SPORT_CONFIG[encounter.boss.weakness]?.label}
+                      </span>
+                    </div>
+                  )}
+                  {encounter.boss.resistance && (
+                    <div className="flex items-center gap-2 rounded-lg bg-red-500/15 border border-red-500/30 px-3.5 py-2">
+                      <span className="text-base">{SPORT_CONFIG[encounter.boss.resistance]?.icon}</span>
+                      <span className="text-[12px] font-semibold text-red-400">
+                        Resistans: {SPORT_CONFIG[encounter.boss.resistance]?.label}
+                      </span>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
-              {encounter.boss.lore}
-            </p>
-          </div>
-        </div>
-
-        {/* HP Bar */}
-        <div className="mb-3">
-          <div className="flex justify-between text-xs mb-1">
-            <span className="font-semibold text-gray-700">HP</span>
-            <span className="font-mono text-gray-500">
-              {encounter.current_hp} / {encounter.max_hp}
-            </span>
-          </div>
-          <div className="h-4 rounded-full bg-gray-100 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-red-500 to-orange-500 transition-all duration-500"
-              style={{ width: `${hpPercent}%` }}
-            />
-          </div>
-          <p className="text-[11px] text-gray-400 mt-1 text-right">{hpPercent}% kvar</p>
-        </div>
-
-        {/* Weakness / Resistance */}
-        {(encounter.boss.weakness || encounter.boss.resistance) && (
-          <div className="flex gap-3 mt-2">
-            {encounter.boss.weakness && (
-              <div className="flex items-center gap-1.5 rounded-lg bg-green-50 border border-green-200 px-3 py-1.5">
-                <span className="text-sm">{SPORT_CONFIG[encounter.boss.weakness]?.icon}</span>
-                <span className="text-[11px] font-medium text-green-700">Svaghet</span>
-              </div>
-            )}
-            {encounter.boss.resistance && (
-              <div className="flex items-center gap-1.5 rounded-lg bg-red-50 border border-red-200 px-3 py-1.5">
-                <span className="text-sm">{SPORT_CONFIG[encounter.boss.resistance]?.icon}</span>
-                <span className="text-[11px] font-medium text-red-700">Resistans</span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          </>
+        );
+      })()}
 
       {/* Attack Leaderboard */}
       {attackLeaderboard.length > 0 && (

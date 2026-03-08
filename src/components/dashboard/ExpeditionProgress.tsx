@@ -71,49 +71,73 @@ export default function ExpeditionProgress({ users, currentUserId, activeBoss }:
       )}
 
       {/* Boss blocking the path */}
-      {hasBoss && nextWaypoint && (
-        <>
-          <style>{`
-            @keyframes boss-pulse {
-              0%, 100% { transform: scale(1); }
-              50% { transform: scale(1.15); }
-            }
-            .animate-boss-pulse { animation: boss-pulse 2s ease-in-out infinite; }
-          `}</style>
-          <div className="mt-3 rounded-xl bg-red-50 border border-red-200 p-3">
-            <div className="flex items-center gap-3">
-              <div className="animate-boss-pulse text-3xl select-none">
-                {activeBoss.boss.emoji}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-red-800 truncate">
-                    {activeBoss.boss.name}
+      {hasBoss && nextWaypoint && (() => {
+        const lowHp = bossHpPercent < 30;
+        return (
+          <>
+            <style>{`
+              @keyframes boss-pulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.15); }
+              }
+              @keyframes boss-border-glow {
+                0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+                50% { box-shadow: 0 0 8px 2px rgba(239, 68, 68, 0.3); }
+              }
+              .animate-boss-pulse { animation: boss-pulse 2s ease-in-out infinite; }
+              .animate-boss-glow { animation: boss-border-glow 2s ease-in-out infinite; }
+            `}</style>
+            <div className={`mt-3 rounded-xl border p-3 ${
+              lowHp
+                ? 'bg-gradient-to-r from-amber-50 to-red-50 border-amber-300 animate-boss-glow'
+                : 'bg-gradient-to-r from-red-50 to-red-100/50 border-red-200'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className="relative flex-shrink-0">
+                  <div className="animate-boss-pulse text-3xl select-none">
+                    {activeBoss.boss.emoji}
+                  </div>
+                  <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[7px] font-bold text-white shadow-sm">
+                    {activeBoss.boss.level}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-red-800 truncate">
+                      {activeBoss.boss.name}
+                    </p>
+                    {bossLastStand && (
+                      <span className="inline-flex items-center rounded-full bg-red-200 px-1.5 py-0.5 text-[9px] font-bold text-red-800 animate-pulse whitespace-nowrap">
+                        Last Stand!
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-red-600">
+                    Blockerar vägen till {nextWaypoint.name}
                   </p>
-                  {bossLastStand && (
-                    <span className="inline-flex items-center rounded-full bg-red-200 px-1.5 py-0.5 text-[9px] font-bold text-red-800 animate-pulse whitespace-nowrap">
-                      Last Stand!
+                  {/* HP bar with percentage inside */}
+                  <div className="mt-1.5 h-2.5 w-full rounded-full bg-red-200 overflow-hidden relative">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        lowHp
+                          ? 'bg-gradient-to-r from-amber-400 to-orange-500'
+                          : 'bg-gradient-to-r from-red-500 to-orange-500'
+                      }`}
+                      style={{ width: `${bossHpPercent}%` }}
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-white mix-blend-difference">
+                      {bossHpPercent}%
                     </span>
-                  )}
+                  </div>
+                  <p className="text-[10px] text-red-400 mt-0.5">
+                    {activeBoss.current_hp} / {activeBoss.max_hp} HP
+                  </p>
                 </div>
-                <p className="text-[11px] text-red-600">
-                  Blockerar vägen till {nextWaypoint.name}
-                </p>
-                {/* Mini HP bar */}
-                <div className="mt-1.5 h-2 w-full rounded-full bg-red-200 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-red-500 to-orange-500 transition-all duration-500"
-                    style={{ width: `${bossHpPercent}%` }}
-                  />
-                </div>
-                <p className="text-[10px] text-red-400 mt-0.5">
-                  {activeBoss.current_hp} / {activeBoss.max_hp} HP ({bossHpPercent}%)
-                </p>
               </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* Overall journey progress */}
       <div className="mt-3 pt-3 border-t border-indigo-100/50">
