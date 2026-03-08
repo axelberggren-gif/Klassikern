@@ -20,8 +20,13 @@ export type FeedEventType =
   | 'badge_earned'
   | 'streak_milestone'
   | 'waypoint_reached'
-  | 'challenge_completed';
+  | 'challenge_completed'
+  | 'boss_attacked'
+  | 'boss_defeated'
+  | 'boss_failed'
+  | 'boss_critical_hit';
 export type GroupMemberRole = 'owner' | 'admin' | 'member';
+export type BossEncounterStatus = 'active' | 'defeated' | 'failed';
 
 // ---------------------------------------------------------------------------
 // Database interface (Supabase generated types pattern)
@@ -418,6 +423,156 @@ export interface Database {
         };
         Relationships: [];
       };
+      boss_definitions: {
+        Row: {
+          id: string;
+          name: string;
+          emoji: string;
+          lore_text: string;
+          base_hp: number;
+          weakness: SportType | null;
+          resistance: SportType | null;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          emoji: string;
+          lore_text: string;
+          base_hp: number;
+          weakness?: SportType | null;
+          resistance?: SportType | null;
+          sort_order: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          emoji?: string;
+          lore_text?: string;
+          base_hp?: number;
+          weakness?: SportType | null;
+          resistance?: SportType | null;
+          sort_order?: number;
+        };
+        Relationships: [];
+      };
+      boss_encounters: {
+        Row: {
+          id: string;
+          group_id: string;
+          boss_id: string;
+          week_number: number;
+          status: BossEncounterStatus;
+          max_hp: number;
+          current_hp: number;
+          killing_blow_user_id: string | null;
+          debuff_modifier: number;
+          started_at: string;
+          ended_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          group_id: string;
+          boss_id: string;
+          week_number: number;
+          status?: BossEncounterStatus;
+          max_hp: number;
+          current_hp: number;
+          killing_blow_user_id?: string | null;
+          debuff_modifier?: number;
+          started_at?: string;
+          ended_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          group_id?: string;
+          boss_id?: string;
+          week_number?: number;
+          status?: BossEncounterStatus;
+          max_hp?: number;
+          current_hp?: number;
+          killing_blow_user_id?: string | null;
+          debuff_modifier?: number;
+          started_at?: string;
+          ended_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      boss_attacks: {
+        Row: {
+          id: string;
+          encounter_id: string;
+          user_id: string;
+          session_id: string;
+          damage: number;
+          is_critical: boolean;
+          sport_type: SportType;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          encounter_id: string;
+          user_id: string;
+          session_id: string;
+          damage: number;
+          is_critical?: boolean;
+          sport_type: SportType;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          encounter_id?: string;
+          user_id?: string;
+          session_id?: string;
+          damage?: number;
+          is_critical?: boolean;
+          sport_type?: SportType;
+        };
+        Relationships: [];
+      };
+      boss_trophies: {
+        Row: {
+          id: string;
+          user_id: string;
+          encounter_id: string;
+          boss_id: string;
+          damage_dealt: number;
+          is_killing_blow: boolean;
+          bonus_ep: number;
+          week_number: number;
+          earned_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          encounter_id: string;
+          boss_id: string;
+          damage_dealt?: number;
+          is_killing_blow?: boolean;
+          bonus_ep?: number;
+          week_number: number;
+          earned_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          encounter_id?: string;
+          boss_id?: string;
+          damage_dealt?: number;
+          is_killing_blow?: boolean;
+          bonus_ep?: number;
+          week_number?: number;
+          earned_at?: string;
+        };
+        Relationships: [];
+      };
       strava_connections: {
         Row: {
           id: string;
@@ -473,6 +628,7 @@ export interface Database {
       effort_rating: EffortRating;
       badge_category: BadgeCategory;
       feed_event_type: FeedEventType;
+      boss_encounter_status: BossEncounterStatus;
     };
   };
 }
@@ -495,6 +651,10 @@ export type FeedReaction = Database['public']['Tables']['feed_reactions']['Row']
 export type WeeklyChallenge = Database['public']['Tables']['weekly_challenges']['Row'];
 export type ExpeditionWaypoint = Database['public']['Tables']['expedition_waypoints']['Row'];
 export type StravaConnection = Database['public']['Tables']['strava_connections']['Row'];
+export type BossDefinition = Database['public']['Tables']['boss_definitions']['Row'];
+export type BossEncounter = Database['public']['Tables']['boss_encounters']['Row'];
+export type BossAttack = Database['public']['Tables']['boss_attacks']['Row'];
+export type BossTrophy = Database['public']['Tables']['boss_trophies']['Row'];
 
 // Backward-compatible alias: the old code uses "User" instead of "Profile".
 // The mock-data / localStorage layer also uses group_id on users, even though
@@ -557,3 +717,15 @@ export type GroupDetails = {
   created_by: string | null;
   members: GroupMemberWithProfile[];
 };
+
+export interface BossEncounterWithBoss extends BossEncounter {
+  boss: BossDefinition;
+}
+
+export interface BossTrophyWithBoss extends BossTrophy {
+  boss: BossDefinition;
+}
+
+export interface BossAttackWithUser extends BossAttack {
+  user: Profile;
+}

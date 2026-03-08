@@ -12,6 +12,13 @@ import type {
   GroupMemberWithProfile,
   SportType,
   EffortRating,
+  BossDefinition,
+  BossEncounter,
+  BossEncounterWithBoss,
+  BossAttack,
+  BossAttackWithUser,
+  BossTrophy,
+  BossTrophyWithBoss,
 } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -136,9 +143,20 @@ export async function getUserSessions(
   return data ?? [];
 }
 
+export interface BossAttackInfo {
+  damage: number;
+  isCritical: boolean;
+  bossName: string;
+  bossEmoji: string;
+  isDefeated: boolean;
+  remainingHp: number;
+  maxHp: number;
+}
+
 export interface LogSessionResult {
   session: Session;
   newBadges: string[];
+  bossAttack: BossAttackInfo | null;
 }
 
 export async function logSession(params: {
@@ -213,10 +231,123 @@ export async function logSession(params: {
     });
   }
 
+  // 3.5 Boss attack (if group has active boss)
+  let bossAttack: BossAttackInfo | null = null;
+  if (params.groupId) {
+    const encounter = await getActiveBossEncounter(params.groupId);
+    if (encounter) {
+      const { calculateBossDamage } = await import('./boss-engine');
+      const todayCount = await getTodayAttackerCount(encounter.id);
+      const damageResult = calculateBossDamage({
+        epEarned: ep,
+        sportType: params.sportType,
+        boss: encounter.boss,
+        encounter,
+        todayAttackerCount: todayCount,
+      });
+
+      await insertBossAttack({
+        encounterId: encounter.id,
+        userId: params.userId,
+        sessionId: session.id,
+        damage: damageResult.damage,
+        isCritical: damageResult.isCritical,
+        sportType: params.sportType,
+      });
+
+      const newHp = Math.max(0, encounter.current_hp - damageResult.damage);
+      const isDefeated = newHp === 0;
+
+      await updateBossEncounter(encounter.id, {
+        current_hp: newHp,
+        ...(isDefeated
+          ? {
+              status: 'defeated' as const,
+              killing_blow_user_id: params.userId,
+              ended_at: new Date().toISOString(),
+            }
+          : {}),
+      });
+
+      // Post boss feed event
+      await supabase.from('activity_feed').insert({
+        group_id: params.groupId,
+        user_id: params.userId,
+        event_type: damageResult.isCritical ? 'boss_critical_hit' : 'boss_attacked',
+        event_data: {
+          boss_name: encounter.boss.name,
+          boss_emoji: encounter.boss.emoji,
+          damage: damageResult.damage,
+          is_critical: damageResult.isCritical,
+          remaining_hp: newHp,
+          max_hp: encounter.max_hp,
+        },
+      });
+
+      if (isDefeated) {
+        // Award trophies to all participants
+        const attacks = await getEncounterAttacks(encounter.id);
+        const participantDamage = new Map<string, number>();
+        for (const atk of attacks) {
+          participantDamage.set(
+            atk.user_id,
+            (participantDamage.get(atk.user_id) || 0) + atk.damage
+          );
+        }
+        const bonusEp = Math.round(encounter.max_hp * 0.1);
+        for (const [participantId, totalDmg] of participantDamage) {
+          await insertBossTrophy({
+            userId: participantId,
+            encounterId: encounter.id,
+            bossId: encounter.boss_id,
+            damageDealt: totalDmg,
+            isKillingBlow: participantId === params.userId,
+            bonusEp,
+            weekNumber: encounter.week_number,
+          });
+          // Award bonus EP to each participant
+          const { data: pProfile } = await supabase
+            .from('profiles')
+            .select('total_ep')
+            .eq('id', participantId)
+            .single();
+          if (pProfile) {
+            await supabase
+              .from('profiles')
+              .update({ total_ep: pProfile.total_ep + bonusEp })
+              .eq('id', participantId);
+          }
+        }
+
+        // Post defeated event
+        await supabase.from('activity_feed').insert({
+          group_id: params.groupId,
+          user_id: params.userId,
+          event_type: 'boss_defeated',
+          event_data: {
+            boss_name: encounter.boss.name,
+            boss_emoji: encounter.boss.emoji,
+            killing_blow_user: params.userId,
+          },
+        });
+      }
+
+      bossAttack = {
+        damage: damageResult.damage,
+        isCritical: damageResult.isCritical,
+        bossName: encounter.boss.name,
+        bossEmoji: encounter.boss.emoji,
+        isDefeated,
+        remainingHp: newHp,
+        maxHp: encounter.max_hp,
+      };
+    }
+  }
+
   // 4. Check and award badges
   const newBadges = await checkAndAwardBadges(params.userId);
 
-  return { session, newBadges };
+  return { session, newBadges, bossAttack };
 }
 
 // ---------------------------------------------------------------------------
@@ -687,4 +818,181 @@ export async function disconnectStrava(
     return false;
   }
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// Boss system
+// ---------------------------------------------------------------------------
+
+export async function getActiveBossEncounter(
+  groupId: string
+): Promise<BossEncounterWithBoss | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('boss_encounters')
+    .select('*, boss_definitions(*)')
+    .eq('group_id', groupId)
+    .eq('status', 'active')
+    .order('week_number', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  const { boss_definitions, ...encounter } = data as Record<string, unknown>;
+  return { ...encounter, boss: boss_definitions } as unknown as BossEncounterWithBoss;
+}
+
+export async function getAllBossDefinitions(): Promise<BossDefinition[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('boss_definitions')
+    .select('*')
+    .order('sort_order');
+  if (error) return [];
+  return data ?? [];
+}
+
+export async function getEncounterAttacks(
+  encounterId: string
+): Promise<BossAttackWithUser[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('boss_attacks')
+    .select('*, profiles(*)')
+    .eq('encounter_id', encounterId)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) return [];
+  return data.map((item) => {
+    const { profiles, ...attack } = item as Record<string, unknown>;
+    return { ...attack, user: profiles } as unknown as BossAttackWithUser;
+  });
+}
+
+export async function getTodayAttackerCount(
+  encounterId: string
+): Promise<number> {
+  const supabase = createClient();
+  const today = new Date().toISOString().split('T')[0];
+  const { count, error } = await supabase
+    .from('boss_attacks')
+    .select('user_id', { count: 'exact', head: true })
+    .eq('encounter_id', encounterId)
+    .gte('created_at', today);
+  if (error) return 0;
+  return count ?? 0;
+}
+
+export async function insertBossAttack(attack: {
+  encounterId: string;
+  userId: string;
+  sessionId: string;
+  damage: number;
+  isCritical: boolean;
+  sportType: SportType;
+}): Promise<BossAttack | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('boss_attacks')
+    .insert({
+      encounter_id: attack.encounterId,
+      user_id: attack.userId,
+      session_id: attack.sessionId,
+      damage: attack.damage,
+      is_critical: attack.isCritical,
+      sport_type: attack.sportType,
+    })
+    .select()
+    .single();
+  if (error) {
+    console.error('Error inserting boss attack:', error);
+    return null;
+  }
+  return data;
+}
+
+export async function updateBossEncounter(
+  encounterId: string,
+  updates: {
+    current_hp?: number;
+    status?: 'active' | 'defeated' | 'failed';
+    killing_blow_user_id?: string;
+    ended_at?: string;
+  }
+): Promise<BossEncounter | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('boss_encounters')
+    .update(updates)
+    .eq('id', encounterId)
+    .select()
+    .single();
+  if (error) {
+    console.error('Error updating boss encounter:', error);
+    return null;
+  }
+  return data;
+}
+
+export async function insertBossTrophy(trophy: {
+  userId: string;
+  encounterId: string;
+  bossId: string;
+  damageDealt: number;
+  isKillingBlow: boolean;
+  bonusEp: number;
+  weekNumber: number;
+}): Promise<BossTrophy | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('boss_trophies')
+    .insert({
+      user_id: trophy.userId,
+      encounter_id: trophy.encounterId,
+      boss_id: trophy.bossId,
+      damage_dealt: trophy.damageDealt,
+      is_killing_blow: trophy.isKillingBlow,
+      bonus_ep: trophy.bonusEp,
+      week_number: trophy.weekNumber,
+    })
+    .select()
+    .single();
+  if (error) {
+    console.error('Error inserting boss trophy:', error);
+    return null;
+  }
+  return data;
+}
+
+export async function getUserTrophies(
+  userId: string
+): Promise<BossTrophyWithBoss[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('boss_trophies')
+    .select('*, boss_definitions(*)')
+    .eq('user_id', userId)
+    .order('earned_at', { ascending: false });
+  if (error || !data) return [];
+  return data.map((item) => {
+    const { boss_definitions, ...trophy } = item as Record<string, unknown>;
+    return { ...trophy, boss: boss_definitions } as unknown as BossTrophyWithBoss;
+  });
+}
+
+export async function getGroupBossHistory(
+  groupId: string
+): Promise<BossEncounterWithBoss[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('boss_encounters')
+    .select('*, boss_definitions(*)')
+    .eq('group_id', groupId)
+    .neq('status', 'active')
+    .order('week_number', { ascending: false });
+  if (error || !data) return [];
+  return data.map((item) => {
+    const { boss_definitions, ...encounter } = item as Record<string, unknown>;
+    return { ...encounter, boss: boss_definitions } as unknown as BossEncounterWithBoss;
+  });
 }
