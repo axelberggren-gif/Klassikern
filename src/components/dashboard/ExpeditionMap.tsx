@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Mountain, MapPin, Bike, Waves, TreePine } from 'lucide-react';
 import type { Profile, BossEncounterWithBoss } from '@/types/database';
-import { EXPEDITION_WAYPOINTS } from '@/lib/mock-data';
+import { EXPEDITION_WAYPOINTS } from '@/lib/expedition-waypoints';
 
 interface ExpeditionMapProps {
   users: Profile[];
