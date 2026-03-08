@@ -162,7 +162,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 ## Known Issues
 
-- **Vercel preview "stuck on loading" after login**: Caused by `getSession()` (cookie-only reads) failing on preview deployments due to Vercel Deployment Protection + @serwist service worker + Supabase `navigator.locks` interference. Fix: use `getUser()` (makes a server call) in `useAuth` hook instead. If this recurs, also try: clearing the service worker in DevTools → Application → Service Workers, or testing in incognito mode.
+- **Vercel preview "stuck on loading" after login**: The @serwist/next service worker caches JS chunks (CacheFirst) and pages (NetworkFirst), serving stale code from previous deployments on preview URLs. This prevents React from hydrating properly — auth hooks never execute, no Supabase API calls are made after login. Fix: the SW is now disabled on preview via `VERCEL_ENV === "preview"` in `next.config.ts`. If this recurs on a user's browser, they must **unregister the service worker** (DevTools → Application → Service Workers → Unregister) and hard-refresh (Cmd+Shift+R), or use incognito mode. The `useAuth` hook also uses `getUser()` (server call) instead of `getSession()` (cookie-only) for additional resilience.
 
 ## Important Notes
 
