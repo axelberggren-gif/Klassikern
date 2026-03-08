@@ -7,6 +7,7 @@ import StreakBadge from '@/components/dashboard/StreakBadge';
 import TodayCard from '@/components/dashboard/TodayCard';
 import WeekSummary from '@/components/dashboard/WeekSummary';
 import ExpeditionMap from '@/components/dashboard/ExpeditionMap';
+import BossCard from '@/components/dashboard/BossCard';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import { useAuth } from '@/lib/auth';
 import { getGroupMembers, getUserSessions, getActivityFeed, getUserGroupId, getActiveBossEncounter } from '@/lib/store';
@@ -108,6 +109,11 @@ export default function DashboardPage() {
 
         {/* Expedition map */}
         <ExpeditionMap users={members} currentUserId={user!.id} activeBoss={activeBoss} />
+
+        {/* Boss Battle card */}
+        {activeBoss && (
+          <BossCard encounter={activeBoss} currentUserId={user!.id} />
+        )}
 
         {/* Activity feed */}
         <ActivityFeed items={feed} />
