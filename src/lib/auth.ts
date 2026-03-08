@@ -23,10 +23,12 @@ export interface AuthState {
 /**
  * React hook that provides the current auth state.
  *
- * - Subscribes to Supabase auth state changes
- * - Fetches the user's profile from the profiles table
- * - Handles the case where auth session exists but profile doesn't
- * - Provides a signOut function that clears the session and redirects
+ * Architecture:
+ *  - Effect 1: onAuthStateChange sets the user (synchronous, no DB calls)
+ *  - Effect 2: when user changes, fetch profile in a separate async context
+ *
+ * This split avoids a deadlock in @supabase/ssr where both getSession()
+ * and database queries hang when called inside onAuthStateChange.
  */
 export function useAuth(): AuthState {
   const router = useRouter();
@@ -34,70 +36,26 @@ export function useAuth(): AuthState {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId: string) => {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error || !data) {
-      return null;
-    }
-
-    return data;
-  }, []);
-
+  // Effect 1: Listen for auth state changes — synchronous only, no DB calls.
   useEffect(() => {
     const supabase = createClient();
+    let isFirstEvent = true;
 
-    // Get initial session
-    const initAuth = async () => {
-      try {
-        const {
-          data: { user: currentUser },
-        } = await supabase.auth.getUser();
-
-        setUser(currentUser);
-
-        if (currentUser) {
-          const userProfile = await fetchProfile(currentUser.id);
-          setProfile(userProfile);
-
-          // If no profile exists at all, sign out (admin must create user properly)
-          if (!userProfile) {
-            await supabase.auth.signOut();
-            router.replace('/login');
-          }
-        }
-      } catch {
-        // Auth check failed — user is not authenticated
-        setUser(null);
-        setProfile(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initAuth();
-
-    // Subscribe to auth state changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       const sessionUser = session?.user ?? null;
       setUser(sessionUser);
 
-      if (sessionUser) {
-        const userProfile = await fetchProfile(sessionUser.id);
-        setProfile(userProfile);
-      } else {
-        setProfile(null);
+      // If no user on initial event, we're done loading
+      if (isFirstEvent && !sessionUser) {
+        setLoading(false);
       }
+      isFirstEvent = false;
 
       if (event === 'SIGNED_OUT') {
         setProfile(null);
+        setLoading(false);
         router.replace('/login');
       }
     });
@@ -105,7 +63,43 @@ export function useAuth(): AuthState {
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchProfile, router]);
+  }, [router]);
+
+  // Effect 2: Fetch profile when user changes (runs OUTSIDE onAuthStateChange).
+  useEffect(() => {
+    if (!user) {
+      setProfile(null);
+      return;
+    }
+
+    const supabase = createClient();
+    let cancelled = false;
+
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+
+        if (error || !data) {
+          // Don't sign out or redirect — this would cause an infinite loop.
+          // Profile might fail due to RLS or transient errors.
+          console.error('[useAuth] profile fetch failed:', error?.message ?? 'no data');
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+
+        setProfile(data);
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const signOut = useCallback(async () => {
     const supabase = createClient();
