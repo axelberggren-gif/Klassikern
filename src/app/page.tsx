@@ -7,11 +7,13 @@ import StreakBadge from '@/components/dashboard/StreakBadge';
 import TodayCard from '@/components/dashboard/TodayCard';
 import WeekSummary from '@/components/dashboard/WeekSummary';
 import ExpeditionMap from '@/components/dashboard/ExpeditionMap';
+import BossCard from '@/components/dashboard/BossCard';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import { useAuth } from '@/lib/auth';
-import { getGroupMembers, getUserSessions, getActivityFeed, getUserGroupId } from '@/lib/store';
-import { getCurrentWeekNumber, getPlanForWeek } from '@/lib/training-plan';
-import type { Profile, PlannedSession, Session, ActivityFeedItemWithUser } from '@/types/database';
+import { getGroupMembers, getUserSessions, getActivityFeed, getUserGroupId, getActiveBossEncounter } from '@/lib/store';
+import { getPlanForWeek } from '@/lib/training-plan';
+import { getCurrentWeekNumber, getWeekRange } from '@/lib/date-utils';
+import type { Profile, PlannedSession, Session, ActivityFeedItemWithUser, BossEncounterWithBoss } from '@/types/database';
 
 export default function DashboardPage() {
   const { user, profile, loading } = useAuth();
@@ -23,6 +25,7 @@ export default function DashboardPage() {
   const [feed, setFeed] = useState<ActivityFeedItemWithUser[]>([]);
   const [weekNumber, setWeekNumber] = useState(1);
   const [totalSessions, setTotalSessions] = useState(0);
+  const [activeBoss, setActiveBoss] = useState<BossEncounterWithBoss | null>(null);
 
   useEffect(() => {
     if (!user || !profile) return;
@@ -51,10 +54,7 @@ export default function DashboardPage() {
       setTodaySessions(sessions.filter((s) => s.date === today));
 
       // Week sessions
-      const weekStart = new Date(2026, 1, 23);
-      weekStart.setDate(weekStart.getDate() + (wk - 1) * 7);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 7);
+      const { start: weekStart, end: weekEnd } = getWeekRange(wk);
       setWeekSessions(
         sessions.filter((s) => {
           const d = new Date(s.date);
@@ -65,8 +65,12 @@ export default function DashboardPage() {
       setMembers(groupMembers);
 
       if (groupId) {
-        const feedData = await getActivityFeed(groupId);
+        const [feedData, bossEncounter] = await Promise.all([
+          getActivityFeed(groupId),
+          getActiveBossEncounter(groupId),
+        ]);
         setFeed(feedData);
+        setActiveBoss(bossEncounter);
       }
     };
 
@@ -113,7 +117,12 @@ export default function DashboardPage() {
         <WeekSummary weekPlan={weekPlan} weekSessions={weekSessions} weekNumber={weekNumber} />
 
         {/* Expedition map */}
-        <ExpeditionMap users={members} currentUserId={user!.id} />
+        <ExpeditionMap users={members} currentUserId={user!.id} activeBoss={activeBoss} />
+
+        {/* Boss Battle card */}
+        {activeBoss && (
+          <BossCard encounter={activeBoss} currentUserId={user!.id} />
+        )}
 
         {/* Activity feed */}
         <ActivityFeed items={feed} />

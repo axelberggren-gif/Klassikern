@@ -1,15 +1,17 @@
 'use client';
 
 import { MapPin, Mountain } from 'lucide-react';
-import type { Profile } from '@/types/database';
-import { EXPEDITION_WAYPOINTS } from '@/lib/mock-data';
+import type { Profile, BossEncounterWithBoss } from '@/types/database';
+import { EXPEDITION_WAYPOINTS } from '@/lib/expedition-waypoints';
+import { isLastStandWindow } from '@/lib/boss-engine';
 
 interface ExpeditionProgressProps {
   users: Profile[];
   currentUserId: string;
+  activeBoss?: BossEncounterWithBoss | null;
 }
 
-export default function ExpeditionProgress({ users, currentUserId }: ExpeditionProgressProps) {
+export default function ExpeditionProgress({ users, currentUserId, activeBoss }: ExpeditionProgressProps) {
   const currentUser = users.find((u) => u.id === currentUserId);
   const totalEP = currentUser?.total_ep || 0;
   const maxEP = EXPEDITION_WAYPOINTS[EXPEDITION_WAYPOINTS.length - 1].ep_threshold;
@@ -17,6 +19,13 @@ export default function ExpeditionProgress({ users, currentUserId }: ExpeditionP
   // Find current and next waypoint
   const currentWaypoint = [...EXPEDITION_WAYPOINTS].reverse().find((w) => totalEP >= w.ep_threshold) || EXPEDITION_WAYPOINTS[0];
   const nextWaypoint = EXPEDITION_WAYPOINTS.find((w) => w.ep_threshold > totalEP);
+
+  // Boss overlay state
+  const hasBoss = activeBoss && activeBoss.status === 'active';
+  const bossLastStand = hasBoss && isLastStandWindow(new Date(activeBoss.week_end));
+  const bossHpPercent = hasBoss
+    ? Math.round((activeBoss.current_hp / activeBoss.max_hp) * 100)
+    : 0;
 
   const overallProgress = Math.min((totalEP / maxEP) * 100, 100);
 
@@ -60,6 +69,63 @@ export default function ExpeditionProgress({ users, currentUserId }: ExpeditionP
           </p>
         </div>
       )}
+
+      {/* Boss blocking the path */}
+      {hasBoss && nextWaypoint && (() => {
+        const lowHp = bossHpPercent < 30;
+        return (
+          <>
+            <div className={`mt-3 rounded-xl border p-3 ${
+              lowHp
+                ? 'bg-gradient-to-r from-amber-50 to-red-50 border-amber-300 animate-boss-glow'
+                : 'bg-gradient-to-r from-red-50 to-red-100/50 border-red-200'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className="relative flex-shrink-0">
+                  <div className="animate-boss-pulse text-3xl select-none">
+                    {activeBoss.boss.emoji}
+                  </div>
+                  <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[7px] font-bold text-white shadow-sm">
+                    {activeBoss.boss.level}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-red-800 truncate">
+                      {activeBoss.boss.name}
+                    </p>
+                    {bossLastStand && (
+                      <span className="inline-flex items-center rounded-full bg-red-200 px-1.5 py-0.5 text-[9px] font-bold text-red-800 animate-pulse whitespace-nowrap">
+                        Last Stand!
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-red-600">
+                    Blockerar vägen till {nextWaypoint.name}
+                  </p>
+                  {/* HP bar with percentage inside */}
+                  <div className="mt-1.5 h-2.5 w-full rounded-full bg-red-200 overflow-hidden relative">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        lowHp
+                          ? 'bg-gradient-to-r from-amber-400 to-orange-500'
+                          : 'bg-gradient-to-r from-red-500 to-orange-500'
+                      }`}
+                      style={{ width: `${bossHpPercent}%` }}
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-white mix-blend-difference">
+                      {bossHpPercent}%
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-red-400 mt-0.5">
+                    {activeBoss.current_hp} / {activeBoss.max_hp} HP
+                  </p>
+                </div>
+              </div>
+            </div>
+          </>
+        );
+      })()}
 
       {/* Overall journey progress */}
       <div className="mt-3 pt-3 border-t border-indigo-100/50">
