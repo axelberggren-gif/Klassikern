@@ -14,6 +14,15 @@ export default function LoginPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // If already authenticated, redirect to dashboard
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) {
+        window.location.href = '/';
+        return;
+      }
+    });
+
     getLoginProfiles().then((data) => {
       setProfiles(data);
       setLoadingProfiles(false);
