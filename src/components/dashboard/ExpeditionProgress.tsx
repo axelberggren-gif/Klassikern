@@ -2,7 +2,7 @@
 
 import { MapPin, Mountain } from 'lucide-react';
 import type { Profile, BossEncounterWithBoss } from '@/types/database';
-import { EXPEDITION_WAYPOINTS } from '@/lib/mock-data';
+import { EXPEDITION_WAYPOINTS } from '@/lib/expedition-waypoints';
 import { isLastStandWindow } from '@/lib/boss-engine';
 
 interface ExpeditionProgressProps {
@@ -75,18 +75,6 @@ export default function ExpeditionProgress({ users, currentUserId, activeBoss }:
         const lowHp = bossHpPercent < 30;
         return (
           <>
-            <style>{`
-              @keyframes boss-pulse {
-                0%, 100% { transform: scale(1); }
-                50% { transform: scale(1.15); }
-              }
-              @keyframes boss-border-glow {
-                0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-                50% { box-shadow: 0 0 8px 2px rgba(239, 68, 68, 0.3); }
-              }
-              .animate-boss-pulse { animation: boss-pulse 2s ease-in-out infinite; }
-              .animate-boss-glow { animation: boss-border-glow 2s ease-in-out infinite; }
-            `}</style>
             <div className={`mt-3 rounded-xl border p-3 ${
               lowHp
                 ? 'bg-gradient-to-r from-amber-50 to-red-50 border-amber-300 animate-boss-glow'

@@ -9,7 +9,8 @@ import BadgeUnlockModal from '@/components/BadgeUnlockModal';
 import { SPORT_CONFIG, EFFORT_LABELS, ACTIVE_SPORT_TYPES } from '@/lib/sport-config';
 import { useAuth } from '@/lib/auth';
 import { logSession, getUserGroupId, getAllBadges } from '@/lib/store';
-import { getCurrentWeekNumber, getPlanForWeek } from '@/lib/training-plan';
+import { getPlanForWeek } from '@/lib/training-plan';
+import { getCurrentWeekNumber } from '@/lib/date-utils';
 import type { SportType, EffortRating, Session, Badge, PlannedSession } from '@/types/database';
 
 export default function LogSessionPage() {

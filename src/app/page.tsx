@@ -10,7 +10,8 @@ import ExpeditionMap from '@/components/dashboard/ExpeditionMap';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import { useAuth } from '@/lib/auth';
 import { getGroupMembers, getUserSessions, getActivityFeed, getUserGroupId, getActiveBossEncounter } from '@/lib/store';
-import { getCurrentWeekNumber, getPlanForWeek } from '@/lib/training-plan';
+import { getPlanForWeek } from '@/lib/training-plan';
+import { getCurrentWeekNumber, getWeekRange } from '@/lib/date-utils';
 import type { Profile, PlannedSession, Session, ActivityFeedItemWithUser, BossEncounterWithBoss } from '@/types/database';
 
 export default function DashboardPage() {
@@ -52,10 +53,7 @@ export default function DashboardPage() {
       setTodaySessions(sessions.filter((s) => s.date === today));
 
       // Week sessions
-      const weekStart = new Date(2026, 1, 23);
-      weekStart.setDate(weekStart.getDate() + (wk - 1) * 7);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 7);
+      const { start: weekStart, end: weekEnd } = getWeekRange(wk);
       setWeekSessions(
         sessions.filter((s) => {
           const d = new Date(s.date);

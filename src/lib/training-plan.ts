@@ -1,4 +1,5 @@
 import type { PlannedSession, SportType } from '@/types/database';
+import { getDateForWeekDay } from './date-utils';
 
 // Training plan transcribed from the user's screenshot
 // Start date: Feb 28, 2026 (Saturday of Week 1)
@@ -16,15 +17,6 @@ interface PlanEntry {
 interface WeekPlan {
   week: number;
   sessions: PlanEntry[];
-}
-
-// Helper to get date from week number and day of week
-// Week 1 starts Feb 23 (Monday), Feb 28 is Saturday of week 1
-function getDateForWeekDay(weekNumber: number, dayOfWeek: number): string {
-  const startMonday = new Date(2026, 1, 23); // Feb 23, 2026 (Monday)
-  const date = new Date(startMonday);
-  date.setDate(date.getDate() + (weekNumber - 1) * 7 + (dayOfWeek - 1));
-  return date.toISOString().split('T')[0];
 }
 
 // Base training plan — weeks 1–12 (pre-Vätternrundan focus)
@@ -210,14 +202,8 @@ export function getTodaysPlan(): PlannedSession[] {
   return TRAINING_PLAN.filter((s) => s.date === today);
 }
 
-// Calculate which week number we're in
-export function getCurrentWeekNumber(): number {
-  const startMonday = new Date(2026, 1, 23); // Feb 23, 2026
-  const now = new Date();
-  const diffMs = now.getTime() - startMonday.getTime();
-  const diffWeeks = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
-  return Math.max(1, diffWeeks + 1);
-}
+// Re-export from date-utils for backward compatibility
+export { getCurrentWeekNumber } from './date-utils';
 
 // Total number of weeks in the plan
 export function getTotalWeeks(): number {
