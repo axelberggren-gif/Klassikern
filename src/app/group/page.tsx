@@ -17,6 +17,7 @@ import {
   LogOut,
   Plus,
   Loader2,
+  Swords,
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
@@ -30,15 +31,22 @@ import {
   leaveGroup,
   regenerateInviteCode,
   createGroup,
+  getActiveBossEncounter,
+  getBossAttacks,
+  getBossHistory,
 } from '@/lib/store';
+import { isLastStandWindow } from '@/lib/boss-engine';
+import { SPORT_CONFIG } from '@/lib/sport-config';
 import type {
   Profile,
   ActivityFeedItemWithUser,
   GroupDetails,
+  BossEncounterWithBoss,
+  BossAttack,
 } from '@/types/database';
 
 type LeaderboardType = 'ep' | 'streak' | 'sessions';
-type TabType = 'leaderboard' | 'feed' | 'settings';
+type TabType = 'leaderboard' | 'boss' | 'feed' | 'settings';
 
 interface LeaderboardConfig {
   key: LeaderboardType;
@@ -612,6 +620,251 @@ function GroupSettingsTab({
 }
 
 // ---------------------------------------------------------------------------
+// Boss Battle Tab
+// ---------------------------------------------------------------------------
+
+function BossBattleTab({
+  encounter,
+  attacks,
+  history,
+  members,
+}: {
+  encounter: BossEncounterWithBoss | null;
+  attacks: BossAttack[];
+  history: BossEncounterWithBoss[];
+  members: Profile[];
+}) {
+  const [showHistory, setShowHistory] = useState(false);
+
+  if (!encounter) {
+    return (
+      <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-8 text-center">
+        <p className="text-5xl mb-3">{'\u{1F634}'}{'\u{1F409}'}</p>
+        <h3 className="text-base font-semibold text-gray-700 mb-1">
+          Ingen aktiv boss just nu
+        </h3>
+        <p className="text-sm text-gray-400">
+          En ny boss dyker upp i b&ouml;rjan av n&auml;sta vecka!
+        </p>
+      </div>
+    );
+  }
+
+  const hpPercent = encounter.max_hp > 0
+    ? Math.round((encounter.current_hp / encounter.max_hp) * 100)
+    : 0;
+
+  const lastStand = isLastStandWindow(new Date(encounter.week_end));
+
+  // --- Attack Leaderboard: group by user, sum damage ---
+  const damageByUser: Record<string, { damage: number; attacks: number; crits: number }> = {};
+  for (const atk of attacks) {
+    if (!damageByUser[atk.user_id]) {
+      damageByUser[atk.user_id] = { damage: 0, attacks: 0, crits: 0 };
+    }
+    damageByUser[atk.user_id].damage += atk.damage;
+    damageByUser[atk.user_id].attacks += 1;
+    if (atk.is_critical) damageByUser[atk.user_id].crits += 1;
+  }
+
+  const attackLeaderboard = Object.entries(damageByUser)
+    .map(([userId, stats]) => {
+      const member = members.find((m) => m.id === userId);
+      return { userId, displayName: member?.display_name || 'Ok\u00e4nd', ...stats };
+    })
+    .sort((a, b) => b.damage - a.damage);
+
+  // --- Attack Timeline: most recent first, max 10 ---
+  const recentAttacks = [...attacks]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 10);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Active Boss Card */}
+      <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-5">
+        <div className="flex items-center gap-4 mb-4">
+          <span className="text-6xl leading-none">{encounter.boss.emoji}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-bold text-gray-900 truncate">
+                {encounter.boss.name}
+              </h3>
+              {lastStand && (
+                <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 animate-pulse whitespace-nowrap">
+                  {'\u{1F525}'} Last Stand!
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+              {encounter.boss.lore}
+            </p>
+          </div>
+        </div>
+
+        {/* HP Bar */}
+        <div className="mb-3">
+          <div className="flex justify-between text-xs mb-1">
+            <span className="font-semibold text-gray-700">HP</span>
+            <span className="font-mono text-gray-500">
+              {encounter.current_hp} / {encounter.max_hp}
+            </span>
+          </div>
+          <div className="h-4 rounded-full bg-gray-100 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-red-500 to-orange-500 transition-all duration-500"
+              style={{ width: `${hpPercent}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-gray-400 mt-1 text-right">{hpPercent}% kvar</p>
+        </div>
+
+        {/* Weakness / Resistance */}
+        {(encounter.boss.weakness || encounter.boss.resistance) && (
+          <div className="flex gap-3 mt-2">
+            {encounter.boss.weakness && (
+              <div className="flex items-center gap-1.5 rounded-lg bg-green-50 border border-green-200 px-3 py-1.5">
+                <span className="text-sm">{SPORT_CONFIG[encounter.boss.weakness]?.icon}</span>
+                <span className="text-[11px] font-medium text-green-700">Svaghet</span>
+              </div>
+            )}
+            {encounter.boss.resistance && (
+              <div className="flex items-center gap-1.5 rounded-lg bg-red-50 border border-red-200 px-3 py-1.5">
+                <span className="text-sm">{SPORT_CONFIG[encounter.boss.resistance]?.icon}</span>
+                <span className="text-[11px] font-medium text-red-700">Resistans</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Attack Leaderboard */}
+      {attackLeaderboard.length > 0 && (
+        <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+            <Swords size={16} className="text-orange-500" />
+            <h3 className="text-sm font-semibold text-gray-700">Skada denna vecka</h3>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {attackLeaderboard.map((entry, index) => (
+              <div key={entry.userId} className="flex items-center gap-3 px-5 py-3">
+                <span className="w-8 text-center text-sm font-bold">
+                  {getMedalEmoji(index)}
+                </span>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-300 text-sm font-bold text-white">
+                  {entry.displayName.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">
+                    {entry.displayName}
+                  </p>
+                  <p className="text-[11px] text-gray-400">
+                    {entry.attacks} attacker{entry.crits > 0 && (
+                      <span className="text-amber-600 font-semibold"> &middot; {entry.crits} krit</span>
+                    )}
+                  </p>
+                </div>
+                <span className="text-sm font-bold text-orange-600">
+                  {entry.damage} dmg
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Attack Timeline */}
+      {recentAttacks.length > 0 && (
+        <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+            <Zap size={16} className="text-amber-500" />
+            <h3 className="text-sm font-semibold text-gray-700">Raid-logg</h3>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {recentAttacks.map((atk) => {
+              const member = members.find((m) => m.id === atk.user_id);
+              const sportIcon = SPORT_CONFIG[atk.sport_type]?.icon || '\u{2B50}';
+              const timeStr = new Date(atk.created_at).toLocaleString('sv-SE', {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+              return (
+                <div key={atk.id} className="flex items-center gap-3 px-5 py-2.5">
+                  <span className="text-lg">{sportIcon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-800">
+                      <span className="font-medium">{member?.display_name || 'Ok\u00e4nd'}</span>
+                      {' '}&mdash; {atk.damage} dmg
+                      {atk.is_critical && (
+                        <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                          KRIT!
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[11px] text-gray-400">{timeStr}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Boss History */}
+      {history.length > 0 && (
+        <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="w-full px-5 py-3 flex items-center justify-between text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <span>Boss-historik ({history.length})</span>
+            <span className="text-gray-400">{showHistory ? '\u25B2' : '\u25BC'}</span>
+          </button>
+          {showHistory && (
+            <div className="divide-y divide-gray-50 border-t border-gray-100">
+              {history.map((enc) => {
+                const weekStart = new Date(enc.week_start).toLocaleDateString('sv-SE', {
+                  day: 'numeric',
+                  month: 'short',
+                });
+                const weekEnd = new Date(enc.week_end).toLocaleDateString('sv-SE', {
+                  day: 'numeric',
+                  month: 'short',
+                });
+                return (
+                  <div key={enc.id} className="flex items-center gap-3 px-5 py-3">
+                    <span className="text-2xl">{enc.boss.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">
+                        {enc.boss.name}
+                      </p>
+                      <p className="text-[11px] text-gray-400">
+                        {weekStart} &ndash; {weekEnd}
+                      </p>
+                    </div>
+                    {enc.status === 'defeated' ? (
+                      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-semibold text-green-700">
+                        Besegrad
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-semibold text-red-700">
+                        Misslyckad
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main Group Page
 // ---------------------------------------------------------------------------
 
@@ -623,6 +876,9 @@ export default function GroupPage() {
   const [groupDetails, setGroupDetails] = useState<GroupDetails | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('leaderboard');
   const [dataLoading, setDataLoading] = useState(true);
+  const [bossEncounter, setBossEncounter] = useState<BossEncounterWithBoss | null>(null);
+  const [bossAttacks, setBossAttacks] = useState<BossAttack[]>([]);
+  const [bossHistory, setBossHistory] = useState<BossEncounterWithBoss[]>([]);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -632,19 +888,33 @@ export default function GroupPage() {
     setGroupId(userGroupId);
 
     if (userGroupId) {
-      const [groupMembers, feedData, details] = await Promise.all([
+      const [groupMembers, feedData, details, activeBoss, history] = await Promise.all([
         getGroupMembers(user.id),
         getActivityFeed(userGroupId),
         getGroupDetails(userGroupId),
+        getActiveBossEncounter(userGroupId),
+        getBossHistory(userGroupId),
       ]);
 
       setMembers(groupMembers);
       setFeed(feedData);
       setGroupDetails(details);
+      setBossEncounter(activeBoss);
+      setBossHistory(history);
+
+      if (activeBoss) {
+        const attacks = await getBossAttacks(activeBoss.id);
+        setBossAttacks(attacks);
+      } else {
+        setBossAttacks([]);
+      }
     } else {
       setMembers([]);
       setFeed([]);
       setGroupDetails(null);
+      setBossEncounter(null);
+      setBossAttacks([]);
+      setBossHistory([]);
     }
 
     setDataLoading(false);
@@ -685,6 +955,17 @@ export default function GroupPage() {
         >
           <Trophy size={14} className="inline mr-1 -mt-0.5" />
           Topplista
+        </button>
+        <button
+          onClick={() => setActiveTab('boss')}
+          className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${
+            activeTab === 'boss'
+              ? 'bg-orange-500 text-white'
+              : 'bg-gray-100 text-gray-500'
+          }`}
+        >
+          <Swords size={14} className="inline mr-1 -mt-0.5" />
+          Boss
         </button>
         <button
           onClick={() => setActiveTab('feed')}
@@ -746,6 +1027,15 @@ export default function GroupPage() {
               </div>
             </div>
           </>
+        )}
+
+        {activeTab === 'boss' && (
+          <BossBattleTab
+            encounter={bossEncounter}
+            attacks={bossAttacks}
+            history={bossHistory}
+            members={members}
+          />
         )}
 
         {activeTab === 'feed' && (

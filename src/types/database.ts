@@ -20,7 +20,12 @@ export type FeedEventType =
   | 'badge_earned'
   | 'streak_milestone'
   | 'waypoint_reached'
-  | 'challenge_completed';
+  | 'challenge_completed'
+  | 'boss_attacked'
+  | 'boss_defeated'
+  | 'boss_failed'
+  | 'boss_critical_hit';
+export type BossEncounterStatus = 'active' | 'defeated' | 'failed' | 'upcoming';
 export type GroupMemberRole = 'owner' | 'admin' | 'member';
 
 // ---------------------------------------------------------------------------
@@ -453,6 +458,146 @@ export interface Database {
         };
         Relationships: [];
       };
+      boss_definitions: {
+        Row: {
+          id: number;
+          name: string;
+          emoji: string;
+          lore: string;
+          level: number;
+          base_hp: number;
+          weakness: SportType | null;
+          resistance: SportType | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          name: string;
+          emoji: string;
+          lore: string;
+          level: number;
+          base_hp: number;
+          weakness?: SportType | null;
+          resistance?: SportType | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          name?: string;
+          emoji?: string;
+          lore?: string;
+          level?: number;
+          base_hp?: number;
+          weakness?: SportType | null;
+          resistance?: SportType | null;
+        };
+        Relationships: [];
+      };
+      boss_encounters: {
+        Row: {
+          id: string;
+          group_id: string;
+          boss_id: number;
+          status: BossEncounterStatus;
+          max_hp: number;
+          current_hp: number;
+          week_start: string;
+          week_end: string;
+          defeated_at: string | null;
+          defeated_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          group_id: string;
+          boss_id: number;
+          status?: BossEncounterStatus;
+          max_hp: number;
+          current_hp?: number;
+          week_start: string;
+          week_end: string;
+          defeated_at?: string | null;
+          defeated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          group_id?: string;
+          boss_id?: number;
+          status?: BossEncounterStatus;
+          max_hp?: number;
+          current_hp?: number;
+          week_start?: string;
+          week_end?: string;
+          defeated_at?: string | null;
+          defeated_by?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      boss_attacks: {
+        Row: {
+          id: string;
+          encounter_id: string;
+          user_id: string;
+          session_id: string;
+          damage: number;
+          is_critical: boolean;
+          sport_type: SportType;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          encounter_id: string;
+          user_id: string;
+          session_id: string;
+          damage: number;
+          is_critical?: boolean;
+          sport_type: SportType;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          encounter_id?: string;
+          user_id?: string;
+          session_id?: string;
+          damage?: number;
+          is_critical?: boolean;
+          sport_type?: SportType;
+        };
+        Relationships: [];
+      };
+      boss_trophies: {
+        Row: {
+          id: string;
+          user_id: string;
+          encounter_id: string;
+          boss_id: number;
+          bonus_ep: number;
+          is_killing_blow: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          encounter_id: string;
+          boss_id: number;
+          bonus_ep?: number;
+          is_killing_blow?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          encounter_id?: string;
+          boss_id?: number;
+          bonus_ep?: number;
+          is_killing_blow?: boolean;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -465,6 +610,7 @@ export interface Database {
       effort_rating: EffortRating;
       badge_category: BadgeCategory;
       feed_event_type: FeedEventType;
+      boss_encounter_status: BossEncounterStatus;
     };
   };
 }
@@ -487,6 +633,10 @@ export type FeedReaction = Database['public']['Tables']['feed_reactions']['Row']
 export type WeeklyChallenge = Database['public']['Tables']['weekly_challenges']['Row'];
 export type ExpeditionWaypoint = Database['public']['Tables']['expedition_waypoints']['Row'];
 export type StravaConnection = Database['public']['Tables']['strava_connections']['Row'];
+export type BossDefinition = Database['public']['Tables']['boss_definitions']['Row'];
+export type BossEncounter = Database['public']['Tables']['boss_encounters']['Row'];
+export type BossAttack = Database['public']['Tables']['boss_attacks']['Row'];
+export type BossTrophy = Database['public']['Tables']['boss_trophies']['Row'];
 
 // Backward-compatible alias: the old code uses "User" instead of "Profile".
 // The mock-data / localStorage layer also uses group_id on users, even though
@@ -513,6 +663,9 @@ export type FeedReactionInsert = Database['public']['Tables']['feed_reactions'][
 export type UserBadgeInsert = Database['public']['Tables']['user_badges']['Insert'];
 export type StravaConnectionInsert = Database['public']['Tables']['strava_connections']['Insert'];
 export type StravaConnectionUpdate = Database['public']['Tables']['strava_connections']['Update'];
+export type BossEncounterInsert = Database['public']['Tables']['boss_encounters']['Insert'];
+export type BossAttackInsert = Database['public']['Tables']['boss_attacks']['Insert'];
+export type BossTrophyInsert = Database['public']['Tables']['boss_trophies']['Insert'];
 
 // ---------------------------------------------------------------------------
 // Joined / extended types for queries
@@ -541,6 +694,10 @@ export type GroupMemberWithProfile = {
   joined_at: string;
   profile: Profile;
 };
+
+export interface BossEncounterWithBoss extends BossEncounter {
+  boss: BossDefinition;
+}
 
 export type GroupDetails = {
   id: string;

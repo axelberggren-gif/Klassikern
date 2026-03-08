@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { Mountain, MapPin, Bike, Waves, TreePine } from 'lucide-react';
-import type { Profile } from '@/types/database';
+import type { Profile, BossEncounterWithBoss } from '@/types/database';
 import { EXPEDITION_WAYPOINTS } from '@/lib/mock-data';
 
 interface ExpeditionMapProps {
   users: Profile[];
   currentUserId: string;
+  activeBoss?: BossEncounterWithBoss | null;
 }
 
 // Simplified Sweden outline path (stylized, fits a 100x100 viewbox)
@@ -42,7 +43,7 @@ const AVATAR_COLORS = [
   'rgb(139, 92, 246)',  // violet-500
 ];
 
-export default function ExpeditionMap({ users, currentUserId }: ExpeditionMapProps) {
+export default function ExpeditionMap({ users, currentUserId, activeBoss }: ExpeditionMapProps) {
   const [selectedWaypoint, setSelectedWaypoint] = useState<number | null>(null);
 
   const currentUser = users.find((u) => u.id === currentUserId);
@@ -235,6 +236,52 @@ export default function ExpeditionMap({ users, currentUserId }: ExpeditionMapPro
             );
           })}
 
+          {/* Boss marker at next waypoint */}
+          {activeBoss && activeBoss.status === 'active' && nextWaypoint && (
+            <g>
+              {/* Pulsing danger ring */}
+              <circle
+                cx={nextWaypoint.map_x}
+                cy={nextWaypoint.map_y}
+                r="3"
+                fill="none"
+                stroke="rgb(239, 68, 68)"
+                strokeWidth="0.4"
+              >
+                <animate
+                  attributeName="r"
+                  from="2"
+                  to="5"
+                  dur="1.5s"
+                  repeatCount="indefinite"
+                />
+                <animate
+                  attributeName="opacity"
+                  from="0.8"
+                  to="0"
+                  dur="1.5s"
+                  repeatCount="indefinite"
+                />
+              </circle>
+              {/* Boss emoji */}
+              <text
+                x={nextWaypoint.map_x}
+                y={nextWaypoint.map_y + 1.5}
+                textAnchor="middle"
+                fontSize="5"
+                className="select-none"
+              >
+                <animate
+                  attributeName="y"
+                  values={`${nextWaypoint.map_y + 1.5};${nextWaypoint.map_y + 0.5};${nextWaypoint.map_y + 1.5}`}
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
+                {activeBoss.boss.emoji}
+              </text>
+            </g>
+          )}
+
           {/* Group member markers */}
           {users.map((user, idx) => {
             const pos = getPositionForEP(user.total_ep);
@@ -335,6 +382,27 @@ export default function ExpeditionMap({ users, currentUserId }: ExpeditionMapPro
           <p className="text-xs text-green-600 font-semibold">
             Expeditionen avklarad! Du är en Svensk Klassiker!
           </p>
+        )}
+
+        {/* Boss blocking path */}
+        {activeBoss && activeBoss.status === 'active' && nextWaypoint && (
+          <div className="mt-2 rounded-xl bg-red-50 border border-red-200 px-3 py-2.5 flex items-center gap-3">
+            <span className="text-2xl">{activeBoss.boss.emoji}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-red-800 truncate">
+                {activeBoss.boss.name} blockerar vägen!
+              </p>
+              <div className="mt-1 h-1.5 w-full rounded-full bg-red-200 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-red-500 to-orange-500 transition-all duration-500"
+                  style={{ width: `${activeBoss.max_hp > 0 ? Math.round((activeBoss.current_hp / activeBoss.max_hp) * 100) : 0}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-red-400 mt-0.5">
+                {activeBoss.current_hp} / {activeBoss.max_hp} HP
+              </p>
+            </div>
+          </div>
         )}
 
         {/* Group member legend */}

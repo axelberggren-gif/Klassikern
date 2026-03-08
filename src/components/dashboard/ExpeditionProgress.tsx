@@ -1,15 +1,17 @@
 'use client';
 
 import { MapPin, Mountain } from 'lucide-react';
-import type { Profile } from '@/types/database';
+import type { Profile, BossEncounterWithBoss } from '@/types/database';
 import { EXPEDITION_WAYPOINTS } from '@/lib/mock-data';
+import { isLastStandWindow } from '@/lib/boss-engine';
 
 interface ExpeditionProgressProps {
   users: Profile[];
   currentUserId: string;
+  activeBoss?: BossEncounterWithBoss | null;
 }
 
-export default function ExpeditionProgress({ users, currentUserId }: ExpeditionProgressProps) {
+export default function ExpeditionProgress({ users, currentUserId, activeBoss }: ExpeditionProgressProps) {
   const currentUser = users.find((u) => u.id === currentUserId);
   const totalEP = currentUser?.total_ep || 0;
   const maxEP = EXPEDITION_WAYPOINTS[EXPEDITION_WAYPOINTS.length - 1].ep_threshold;
@@ -17,6 +19,13 @@ export default function ExpeditionProgress({ users, currentUserId }: ExpeditionP
   // Find current and next waypoint
   const currentWaypoint = [...EXPEDITION_WAYPOINTS].reverse().find((w) => totalEP >= w.ep_threshold) || EXPEDITION_WAYPOINTS[0];
   const nextWaypoint = EXPEDITION_WAYPOINTS.find((w) => w.ep_threshold > totalEP);
+
+  // Boss overlay state
+  const hasBoss = activeBoss && activeBoss.status === 'active';
+  const bossLastStand = hasBoss && isLastStandWindow(new Date(activeBoss.week_end));
+  const bossHpPercent = hasBoss
+    ? Math.round((activeBoss.current_hp / activeBoss.max_hp) * 100)
+    : 0;
 
   const overallProgress = Math.min((totalEP / maxEP) * 100, 100);
 
@@ -59,6 +68,51 @@ export default function ExpeditionProgress({ users, currentUserId }: ExpeditionP
             {nextWaypoint.ep_threshold - totalEP} EP kvar
           </p>
         </div>
+      )}
+
+      {/* Boss blocking the path */}
+      {hasBoss && nextWaypoint && (
+        <>
+          <style>{`
+            @keyframes boss-pulse {
+              0%, 100% { transform: scale(1); }
+              50% { transform: scale(1.15); }
+            }
+            .animate-boss-pulse { animation: boss-pulse 2s ease-in-out infinite; }
+          `}</style>
+          <div className="mt-3 rounded-xl bg-red-50 border border-red-200 p-3">
+            <div className="flex items-center gap-3">
+              <div className="animate-boss-pulse text-3xl select-none">
+                {activeBoss.boss.emoji}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-red-800 truncate">
+                    {activeBoss.boss.name}
+                  </p>
+                  {bossLastStand && (
+                    <span className="inline-flex items-center rounded-full bg-red-200 px-1.5 py-0.5 text-[9px] font-bold text-red-800 animate-pulse whitespace-nowrap">
+                      Last Stand!
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-red-600">
+                  Blockerar vägen till {nextWaypoint.name}
+                </p>
+                {/* Mini HP bar */}
+                <div className="mt-1.5 h-2 w-full rounded-full bg-red-200 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-red-500 to-orange-500 transition-all duration-500"
+                    style={{ width: `${bossHpPercent}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-red-400 mt-0.5">
+                  {activeBoss.current_hp} / {activeBoss.max_hp} HP ({bossHpPercent}%)
+                </p>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Overall journey progress */}

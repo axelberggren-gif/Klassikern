@@ -19,8 +19,7 @@ src/
 ├── app/                    # Next.js App Router pages
 │   ├── page.tsx            # Dashboard (home)
 │   ├── layout.tsx          # Root layout
-│   ├── login/page.tsx      # Email + password login
-│   ├── onboarding/page.tsx # New user onboarding flow
+│   ├── login/page.tsx      # User picker + password login
 │   ├── log/page.tsx        # Log a training session
 │   ├── plan/page.tsx       # Weekly training plan
 │   ├── progress/page.tsx   # Personal stats & progress
@@ -51,7 +50,8 @@ src/
 supabase/
 └── migrations/
     ├── 001_initial_schema.sql  # All tables, indexes, functions
-    └── 002_rls_policies.sql    # Row-level security policies
+    ├── 002_rls_policies.sql    # Row-level security policies
+    └── 003_login_redesign.sql  # User picker login, anon RLS, email backfill
 ```
 
 ## Key Patterns
@@ -87,7 +87,7 @@ export default function MyPage() {
 ### Auth
 - `useAuth()` from `src/lib/auth.ts` provides the authenticated user and their profile
 - Middleware at `src/middleware.ts` handles session refresh and redirects unauthenticated users to `/login`
-- Protected routes: everything except `/login` and `/onboarding`
+- Protected routes: everything except `/login`
 - **No self-registration** — users are created manually in Supabase dashboard: Authentication → Users → Add user
 
 ### Data Layer (src/lib/store.ts)
@@ -128,6 +128,12 @@ All data goes through async functions in `store.ts`. Never use localStorage.
 - `expedition_waypoints` — gamified progress map
 
 RLS policies in `002_rls_policies.sql` — users can only access their own data and their group's data.
+
+### RLS Gotchas
+
+- **Anon + recursive policies = infinite recursion.** PostgreSQL evaluates ALL permissive RLS policies (OR'd together), even if one already grants access. If a policy on `profiles` joins `group_members`, and `group_members` has a self-referencing policy, anon queries will trigger infinite recursion (`"infinite recursion detected in policy for relation"`).
+- **Fix:** Any RLS policy that joins other RLS-protected tables (e.g. `group_members`) must use `TO authenticated` — never `TO public` (which includes `anon`). Anon-facing policies should be simple `USING (true)` without subqueries on other protected tables.
+- **After adding new columns**, run `NOTIFY pgrst, 'reload schema';` in the SQL Editor so PostgREST picks up the schema change.
 
 ## Notion Backlog
 
