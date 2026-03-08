@@ -603,7 +603,15 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      get_login_profiles: {
+        Args: Record<string, never>;
+        Returns: {
+          id: string;
+          display_name: string;
+          avatar_url: string | null;
+          email: string | null;
+        }[];
+      };
     };
     Enums: {
       sport_type: SportType;

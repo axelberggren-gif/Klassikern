@@ -24,7 +24,7 @@ export interface AuthState {
  * React hook that provides the current auth state.
  *
  * Architecture:
- *  - Effect 1: onAuthStateChange sets the user (synchronous, no DB calls)
+ *  - Effect 1: getSession() for initial check + onAuthStateChange for updates
  *  - Effect 2: when user changes, fetch profile in a separate async context
  *
  * This split avoids a deadlock in @supabase/ssr where both getSession()
@@ -36,22 +36,56 @@ export function useAuth(): AuthState {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Effect 1: Listen for auth state changes — synchronous only, no DB calls.
+  // Effect 1: Get initial session + listen for auth state changes.
+  // No DB calls here — profile fetching happens in Effect 2.
   useEffect(() => {
     const supabase = createClient();
-    let isFirstEvent = true;
 
+    // Get initial session using getSession() (reads from cookies, no network call).
+    // The middleware already validates the token server-side with getUser(),
+    // so a local session check is safe and avoids network failures/hangs.
+    const initAuth = async () => {
+      try {
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.error('[useAuth] getSession error:', sessionError.message);
+        }
+
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+
+        if (!currentUser) {
+          setLoading(false);
+          const pathname = window.location.pathname;
+          if (pathname !== '/login' && pathname !== '/onboarding') {
+            router.replace('/login');
+          }
+        }
+        // If currentUser exists, loading stays true until Effect 2 fetches profile
+      } catch (err) {
+        console.error('[useAuth] initAuth error:', err);
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        const pathname = window.location.pathname;
+        if (pathname !== '/login' && pathname !== '/onboarding') {
+          router.replace('/login');
+        }
+      }
+    };
+
+    initAuth();
+
+    // Subscribe to auth state changes (sign-in, sign-out, token refresh)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       const sessionUser = session?.user ?? null;
       setUser(sessionUser);
-
-      // If no user on initial event, we're done loading
-      if (isFirstEvent && !sessionUser) {
-        setLoading(false);
-      }
-      isFirstEvent = false;
 
       if (event === 'SIGNED_OUT') {
         setProfile(null);
