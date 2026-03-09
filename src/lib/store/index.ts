@@ -32,5 +32,6 @@ export {
   attackBoss,
   handleBossFailed,
   getUserBossTrophies,
+  getAllBossDefinitions,
   getBossHistory,
 } from './boss';

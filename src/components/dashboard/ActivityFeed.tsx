@@ -25,6 +25,21 @@ function getFeedText(item: ActivityFeedItemWithUser): string {
       return `nådde ${data.waypoint_name} på kartan! 📍`;
     case 'challenge_completed':
       return `klarade veckoutmaningen! 🎯`;
+    case 'boss_attacked': {
+      if (data.is_spawn) {
+        return `En ny boss har dykt upp! ${data.boss_emoji} ${data.boss_name} (${data.max_hp} HP)`;
+      }
+      if (data.is_last_stand) {
+        return String(data.message || `Last Stand! ${data.boss_emoji} ${data.boss_name} har bara ${data.remaining_hp} HP kvar!`);
+      }
+      return `attackerade ${data.boss_emoji} ${data.boss_name} för ${data.damage} skada!`;
+    }
+    case 'boss_critical_hit':
+      return `landade en KRITISK TRÄFF på ${data.boss_emoji} ${data.boss_name}! ${data.damage} skada! ⚡`;
+    case 'boss_defeated':
+      return `${data.boss_emoji} ${data.boss_name} är besegrad! 🎉`;
+    case 'boss_failed':
+      return `${data.boss_emoji || '💀'} Bossen överlevde veckan... Debuff nästa vecka!`;
     default:
       return 'gjorde något fantastiskt!';
   }
@@ -39,6 +54,11 @@ function getFeedIcon(item: ActivityFeedItemWithUser): string {
   if (item.event_type === 'streak_milestone') return '🔥';
   if (item.event_type === 'badge_earned') return '🏅';
   if (item.event_type === 'waypoint_reached') return '📍';
+  if (item.event_type === 'boss_attacked' || item.event_type === 'boss_critical_hit') {
+    return String(data.boss_emoji || '⚔️');
+  }
+  if (item.event_type === 'boss_defeated') return '🏆';
+  if (item.event_type === 'boss_failed') return '💀';
   return '🎯';
 }
 
@@ -59,8 +79,17 @@ export default function ActivityFeed({ items, maxItems = 5 }: ActivityFeedProps)
         <h3 className="text-sm font-semibold text-gray-700">Gruppaktivitet</h3>
       </div>
       <div className="divide-y divide-gray-100">
-        {displayItems.map((item) => (
-          <div key={item.id} className="flex items-start gap-3 px-5 py-3">
+        {displayItems.map((item) => {
+          const data = item.event_data as Record<string, unknown>;
+          const isLastStand = item.event_type === 'boss_attacked' && data.is_last_stand;
+          const isBossDefeated = item.event_type === 'boss_defeated';
+          const rowClass = isLastStand
+            ? 'flex items-start gap-3 px-5 py-3 bg-gradient-to-r from-red-50 to-orange-50'
+            : isBossDefeated
+              ? 'flex items-start gap-3 px-5 py-3 bg-gradient-to-r from-amber-50 to-yellow-50'
+              : 'flex items-start gap-3 px-5 py-3';
+          return (
+          <div key={item.id} className={rowClass}>
             <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm">
               {getFeedIcon(item)}
             </div>
@@ -79,7 +108,8 @@ export default function ActivityFeed({ items, maxItems = 5 }: ActivityFeedProps)
               </p>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

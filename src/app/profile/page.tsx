@@ -22,8 +22,8 @@ import AppShell from '@/components/AppShell';
 import { getBadgeIcon } from '@/components/BadgeUnlockModal';
 import StravaConnect from '@/components/StravaConnect';
 import { useAuth } from '@/lib/auth';
-import { updateCurrentUser, getUserBadges, getAllBadges } from '@/lib/store';
-import type { Badge, UserBadgeWithBadge } from '@/types/database';
+import { updateCurrentUser, getUserBadges, getAllBadges, getUserBossTrophies, getAllBossDefinitions } from '@/lib/store';
+import type { Badge, UserBadgeWithBadge, BossDefinition, BossTrophy } from '@/types/database';
 
 // ---------------------------------------------------------------------------
 // Inline editable field component
@@ -167,15 +167,22 @@ export default function ProfilePage() {
   const { user, profile, loading, signOut } = useAuth();
   const [allBadgeDefs, setAllBadgeDefs] = useState<Badge[]>([]);
   const [earnedBadges, setEarnedBadges] = useState<UserBadgeWithBadge[]>([]);
+  const [allBossDefs, setAllBossDefs] = useState<BossDefinition[]>([]);
+  const [trophies, setTrophies] = useState<(BossTrophy & { boss: BossDefinition })[]>([]);
 
   useEffect(() => {
     if (!user) return;
-    Promise.all([getAllBadges(), getUserBadges(user.id)]).then(
-      ([badges, userBadges]) => {
-        setAllBadgeDefs(badges);
-        setEarnedBadges(userBadges);
-      }
-    );
+    Promise.all([
+      getAllBadges(),
+      getUserBadges(user.id),
+      getAllBossDefinitions(),
+      getUserBossTrophies(user.id),
+    ]).then(([badges, userBadges, bossDefs, userTrophies]) => {
+      setAllBadgeDefs(badges);
+      setEarnedBadges(userBadges);
+      setAllBossDefs(bossDefs);
+      setTrophies(userTrophies);
+    });
   }, [user]);
 
   if (loading || !profile) return (
@@ -337,6 +344,69 @@ export default function ProfilePage() {
                           { day: 'numeric', month: 'short' }
                         )}
                       </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Boss trophies card */}
+        {allBossDefs.length > 0 && (
+          <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-base">⚔️</span>
+                <h3 className="text-sm font-semibold text-gray-700">Boss-troféer</h3>
+              </div>
+              <span className="text-xs font-medium text-gray-400">
+                {trophies.length}/{allBossDefs.length}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {allBossDefs.map((boss) => {
+                const trophy = trophies.find((t) => t.boss_id === boss.id);
+                const earned = !!trophy;
+
+                return (
+                  <div
+                    key={boss.id}
+                    className={`flex flex-col items-center gap-1.5 rounded-xl p-3 text-center transition-all ${
+                      earned
+                        ? 'bg-gradient-to-b from-orange-50 to-amber-50 border border-orange-100'
+                        : 'bg-gray-50 border border-gray-100 opacity-50'
+                    }`}
+                  >
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-full text-lg ${
+                        earned
+                          ? 'bg-gradient-to-br from-orange-400 to-amber-500'
+                          : 'bg-gray-200'
+                      }`}
+                    >
+                      {earned ? boss.emoji : '🔒'}
+                    </div>
+                    <span
+                      className={`text-[11px] font-semibold leading-tight ${
+                        earned ? 'text-gray-800' : 'text-gray-400'
+                      }`}
+                    >
+                      {boss.name}
+                    </span>
+                    {earned && trophy && (
+                      <div className="flex flex-col items-center gap-0.5">
+                        {trophy.bonus_ep > 0 && (
+                          <span className="text-[9px] text-gray-500">
+                            +{trophy.bonus_ep} EP
+                          </span>
+                        )}
+                        {trophy.is_killing_blow && (
+                          <span className="text-[9px] font-bold text-orange-600">
+                            Dödsstöt
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                 );

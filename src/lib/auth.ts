@@ -36,26 +36,29 @@ export function useAuth(): AuthState {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Effect 1: Get initial session + listen for auth state changes.
+  // Effect 1: Get initial user + listen for auth state changes.
   // No DB calls here — profile fetching happens in Effect 2.
   useEffect(() => {
     const supabase = createClient();
+    let cancelled = false;
 
-    // Get initial session using getSession() (reads from cookies, no network call).
-    // The middleware already validates the token server-side with getUser(),
-    // so a local session check is safe and avoids network failures/hangs.
+    // Use getUser() for the initial check — it makes a server call to validate
+    // the token, which is more reliable than getSession() (cookie-only) on
+    // preview/staging deployments where service workers or deployment
+    // protection can interfere with cookie-based auth.
     const initAuth = async () => {
       try {
         const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
+          data: { user: currentUser },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-        if (sessionError) {
-          console.error('[useAuth] getSession error:', sessionError.message);
+        if (cancelled) return;
+
+        if (userError) {
+          console.error('[useAuth] getUser error:', userError.message);
         }
 
-        const currentUser = session?.user ?? null;
         setUser(currentUser);
 
         if (!currentUser) {
@@ -67,6 +70,7 @@ export function useAuth(): AuthState {
         }
         // If currentUser exists, loading stays true until Effect 2 fetches profile
       } catch (err) {
+        if (cancelled) return;
         console.error('[useAuth] initAuth error:', err);
         setUser(null);
         setProfile(null);
@@ -84,6 +88,7 @@ export function useAuth(): AuthState {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
       const sessionUser = session?.user ?? null;
       setUser(sessionUser);
 
@@ -95,6 +100,7 @@ export function useAuth(): AuthState {
     });
 
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
     };
   }, [router]);
