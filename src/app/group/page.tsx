@@ -17,6 +17,7 @@ import {
   LogOut,
   Plus,
   Loader2,
+  Swords,
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
@@ -30,29 +31,41 @@ import {
   leaveGroup,
   regenerateInviteCode,
   createGroup,
+  getActiveBossEncounter,
+  getEncounterAttacks,
+  getGroupBossHistory,
 } from '@/lib/store';
 import type {
   Profile,
   ActivityFeedItemWithUser,
   GroupDetails,
+  BossEncounterWithBoss,
+  BossAttackWithUser,
 } from '@/types/database';
 
-type LeaderboardType = 'ep' | 'streak' | 'sessions';
+type LeaderboardType = 'damage' | 'ep' | 'streak';
 type TabType = 'leaderboard' | 'feed' | 'settings';
 
 interface LeaderboardConfig {
   key: LeaderboardType;
   label: string;
   icon: React.ReactNode;
-  getValue: (user: Profile) => number;
+  getValue: (user: Profile, damageMap?: Map<string, number>) => number;
   formatValue: (value: number) => string;
 }
 
 const LEADERBOARD_CONFIGS: LeaderboardConfig[] = [
   {
+    key: 'damage',
+    label: 'Bossskada denna vecka',
+    icon: <Swords size={16} className="text-rose-500" />,
+    getValue: (user, damageMap) => damageMap?.get(user.id) || 0,
+    formatValue: (v) => `${v} DMG`,
+  },
+  {
     key: 'ep',
-    label: 'EP denna vecka',
-    icon: <Zap size={16} className="text-amber-500" />,
+    label: 'Total EP',
+    icon: <Zap size={16} className="text-amber-400" />,
     getValue: (user) => user.total_ep,
     formatValue: (v) => `${v} EP`,
   },
@@ -62,16 +75,6 @@ const LEADERBOARD_CONFIGS: LeaderboardConfig[] = [
     icon: <Flame size={16} className="text-orange-500" />,
     getValue: (user) => user.current_streak,
     formatValue: (v) => `${v} dagar`,
-  },
-  {
-    key: 'sessions',
-    label: 'Totala pass',
-    icon: <Star size={16} className="text-blue-500" />,
-    getValue: (user) => {
-      // Estimate sessions from total EP (approximate)
-      return user.total_ep > 0 ? Math.ceil(user.total_ep / 15) : 0;
-    },
-    formatValue: (v) => `${v} pass`,
   },
 ];
 
@@ -86,21 +89,21 @@ function getRoleBadge(role: string) {
   switch (role) {
     case 'owner':
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
           <Crown size={10} />
-          Ägare
+          Agare
         </span>
       );
     case 'admin':
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-semibold text-blue-400">
           <Shield size={10} />
           Admin
         </span>
       );
     default:
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
+        <span className="inline-flex items-center gap-1 rounded-full bg-slate-700 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
           Medlem
         </span>
       );
@@ -111,39 +114,41 @@ function Leaderboard({
   users,
   config,
   currentUserId,
+  damageMap,
 }: {
   users: Profile[];
   config: LeaderboardConfig;
   currentUserId: string;
+  damageMap?: Map<string, number>;
 }) {
   const sorted = [...users].sort(
-    (a, b) => config.getValue(b) - config.getValue(a)
+    (a, b) => config.getValue(b, damageMap) - config.getValue(a, damageMap)
   );
 
   return (
-    <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
-      <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+    <div className="rounded-2xl bg-slate-900 border border-slate-700 overflow-hidden">
+      <div className="px-5 py-3 border-b border-slate-700 flex items-center gap-2">
         {config.icon}
-        <h3 className="text-sm font-semibold text-gray-700">{config.label}</h3>
+        <h3 className="text-sm font-semibold text-slate-200">{config.label}</h3>
       </div>
-      <div className="divide-y divide-gray-50">
+      <div className="divide-y divide-slate-800">
         {sorted.map((user, index) => {
-          const value = config.getValue(user);
+          const value = config.getValue(user, damageMap);
           const isCurrentUser = user.id === currentUserId;
 
           return (
             <div
               key={user.id}
               className={`flex items-center gap-3 px-5 py-3 ${
-                isCurrentUser ? 'bg-orange-50/50' : ''
+                isCurrentUser ? 'bg-emerald-500/10' : ''
               }`}
             >
-              <span className="w-8 text-center text-sm font-bold">
+              <span className="w-8 text-center text-sm font-bold text-slate-200">
                 {getMedalEmoji(index)}
               </span>
               <div
                 className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-white ${
-                  isCurrentUser ? 'bg-orange-500' : 'bg-gray-300'
+                  isCurrentUser ? 'bg-emerald-500' : 'bg-slate-600'
                 }`}
               >
                 {user.display_name.charAt(0)}
@@ -151,7 +156,7 @@ function Leaderboard({
               <div className="flex-1">
                 <p
                   className={`text-sm font-medium ${
-                    isCurrentUser ? 'text-orange-700' : 'text-gray-800'
+                    isCurrentUser ? 'text-emerald-400' : 'text-slate-200'
                   }`}
                 >
                   {user.display_name}
@@ -160,7 +165,7 @@ function Leaderboard({
               </div>
               <span
                 className={`text-sm font-bold ${
-                  isCurrentUser ? 'text-orange-600' : 'text-gray-600'
+                  isCurrentUser ? 'text-emerald-400' : 'text-slate-200'
                 }`}
               >
                 {config.formatValue(value)}
@@ -172,10 +177,6 @@ function Leaderboard({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// No Group UI — shown when user has no group
-// ---------------------------------------------------------------------------
 
 function NoGroupView({
   userId,
@@ -199,7 +200,7 @@ function NoGroupView({
     if (result.success) {
       onGroupJoined();
     } else {
-      setError(result.error || 'Okänt fel.');
+      setError(result.error || 'Okant fel.');
     }
     setLoading(false);
   };
@@ -213,23 +214,23 @@ function NoGroupView({
     if (result.success) {
       onGroupJoined();
     } else {
-      setError(result.error || 'Okänt fel.');
+      setError(result.error || 'Okant fel.');
     }
     setLoading(false);
   };
 
   return (
     <AppShell>
-      <div className="bg-white px-5 pt-12 pb-4 border-b border-gray-100">
-        <h1 className="text-xl font-bold text-gray-900">Grupp</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Du är inte med i någon grupp ännu
+      <div className="bg-slate-900 px-5 pt-12 pb-4 border-b border-slate-700">
+        <h1 className="text-xl font-bold text-slate-50">Grupp</h1>
+        <p className="text-sm text-slate-400 mt-1">
+          Du ar inte med i nagon grupp annu
         </p>
       </div>
 
       <div className="flex flex-col gap-4 px-4 py-6">
         {/* Mode switcher */}
-        <div className="flex gap-1 p-1 rounded-xl bg-gray-100">
+        <div className="flex gap-1 p-1 rounded-xl bg-slate-800">
           <button
             onClick={() => {
               setMode('join');
@@ -237,12 +238,12 @@ function NoGroupView({
             }}
             className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition-colors ${
               mode === 'join'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500'
+                ? 'bg-slate-700 text-slate-50 shadow-sm'
+                : 'text-slate-400'
             }`}
           >
             <UserPlus size={14} className="inline mr-1.5 -mt-0.5" />
-            Gå med
+            Ga med
           </button>
           <button
             onClick={() => {
@@ -251,8 +252,8 @@ function NoGroupView({
             }}
             className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition-colors ${
               mode === 'create'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500'
+                ? 'bg-slate-700 text-slate-50 shadow-sm'
+                : 'text-slate-400'
             }`}
           >
             <Plus size={14} className="inline mr-1.5 -mt-0.5" />
@@ -261,17 +262,17 @@ function NoGroupView({
         </div>
 
         {mode === 'join' ? (
-          <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-5">
+          <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
             <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
-                <UserPlus size={20} className="text-orange-600" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15">
+                <UserPlus size={20} className="text-emerald-400" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">
-                  Gå med i en grupp
+                <h3 className="text-sm font-semibold text-slate-50">
+                  Ga med i en grupp
                 </h3>
-                <p className="text-xs text-gray-500">
-                  Ange inbjudningskoden från din vän
+                <p className="text-xs text-slate-400">
+                  Ange inbjudningskoden fran din van
                 </p>
               </div>
             </div>
@@ -282,38 +283,38 @@ function NoGroupView({
               onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
               placeholder="T.ex. ABCD1234"
               maxLength={10}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-center text-lg tracking-widest uppercase font-mono focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 transition-all"
+              className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-center text-lg tracking-widest uppercase font-mono text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all placeholder:text-slate-500"
             />
 
             {error && (
-              <p className="mt-3 text-xs text-red-500 text-center">{error}</p>
+              <p className="mt-3 text-xs text-rose-500 text-center">{error}</p>
             )}
 
             <button
               onClick={handleJoin}
               disabled={!inviteCode.trim() || loading}
-              className="mt-4 w-full rounded-xl bg-orange-500 py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2"
+              className="mt-4 w-full rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <Loader2 size={16} className="animate-spin" />
               ) : (
                 <UserPlus size={16} />
               )}
-              {loading ? 'Går med...' : 'Gå med'}
+              {loading ? 'Gar med...' : 'Ga med'}
             </button>
           </div>
         ) : (
-          <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-5">
+          <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
             <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
-                <Plus size={20} className="text-orange-600" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15">
+                <Plus size={20} className="text-emerald-400" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">
+                <h3 className="text-sm font-semibold text-slate-50">
                   Skapa en ny grupp
                 </h3>
-                <p className="text-xs text-gray-500">
-                  Bjud sedan in dina vänner med en kod
+                <p className="text-xs text-slate-400">
+                  Bjud sedan in dina vanner med en kod
                 </p>
               </div>
             </div>
@@ -324,17 +325,17 @@ function NoGroupView({
               onChange={(e) => setGroupName(e.target.value)}
               placeholder="Gruppnamn"
               maxLength={40}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 transition-all"
+              className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all placeholder:text-slate-500"
             />
 
             {error && (
-              <p className="mt-3 text-xs text-red-500 text-center">{error}</p>
+              <p className="mt-3 text-xs text-rose-500 text-center">{error}</p>
             )}
 
             <button
               onClick={handleCreate}
               disabled={!groupName.trim() || loading}
-              className="mt-4 w-full rounded-xl bg-orange-500 py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2"
+              className="mt-4 w-full rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -349,10 +350,6 @@ function NoGroupView({
     </AppShell>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Settings Tab
-// ---------------------------------------------------------------------------
 
 function GroupSettingsTab({
   groupDetails,
@@ -384,7 +381,6 @@ function GroupSettingsTab({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback for older browsers
       const textArea = document.createElement('textarea');
       textArea.value = groupDetails.invite_code;
       document.body.appendChild(textArea);
@@ -413,12 +409,11 @@ function GroupSettingsTab({
     if (result.success) {
       onLeaveGroup();
     } else {
-      setLeaveError(result.error || 'Okänt fel.');
+      setLeaveError(result.error || 'Okant fel.');
     }
     setLeaving(false);
   };
 
-  // Sort members: owner first, then admin, then member
   const roleOrder: Record<string, number> = {
     owner: 0,
     admin: 1,
@@ -431,20 +426,20 @@ function GroupSettingsTab({
   return (
     <div className="flex flex-col gap-4">
       {/* Invite code card */}
-      <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-5">
+      <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
         <div className="flex items-center gap-2 mb-3">
-          <UserPlus size={16} className="text-orange-500" />
-          <h3 className="text-sm font-semibold text-gray-700">
+          <UserPlus size={16} className="text-emerald-400" />
+          <h3 className="text-sm font-semibold text-slate-200">
             Inbjudningskod
           </h3>
         </div>
-        <p className="text-xs text-gray-500 mb-4">
-          Dela denna kod med vänner så att de kan gå med i gruppen
+        <p className="text-xs text-slate-400 mb-4">
+          Dela denna kod med vanner sa att de kan ga med i gruppen
         </p>
 
         <div className="flex items-center gap-3">
-          <div className="flex-1 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 text-center">
-            <span className="text-xl font-bold tracking-[0.3em] text-gray-900 font-mono">
+          <div className="flex-1 rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-center">
+            <span className="text-xl font-bold tracking-[0.3em] text-slate-50 font-mono">
               {groupDetails.invite_code}
             </span>
           </div>
@@ -452,8 +447,8 @@ function GroupSettingsTab({
             onClick={handleCopy}
             className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl transition-all active:scale-95 ${
               copied
-                ? 'bg-green-100 text-green-600'
-                : 'bg-orange-500 text-white'
+                ? 'bg-emerald-500/15 text-emerald-400'
+                : 'bg-emerald-500 text-white'
             }`}
           >
             {copied ? <Check size={20} /> : <Copy size={20} />}
@@ -461,26 +456,25 @@ function GroupSettingsTab({
         </div>
 
         {copied && (
-          <p className="mt-2 text-xs text-green-600 text-center font-medium">
+          <p className="mt-2 text-xs text-emerald-400 text-center font-medium">
             Kopierad!
           </p>
         )}
 
-        {/* Regenerate code (owner only) */}
         {(isOwner || isOwnerRole) && (
-          <div className="mt-4 pt-4 border-t border-gray-100">
+          <div className="mt-4 pt-4 border-t border-slate-700">
             {!showRegenerateConfirm ? (
               <button
                 onClick={() => setShowRegenerateConfirm(true)}
-                className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-300 transition-colors"
               >
                 <RefreshCw size={12} />
                 Generera ny kod
               </button>
             ) : (
               <div className="flex flex-col gap-2">
-                <p className="text-xs text-amber-600">
-                  Den gamla koden slutar fungera. Är du säker?
+                <p className="text-xs text-amber-400">
+                  Den gamla koden slutar fungera. Ar du saker?
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -497,7 +491,7 @@ function GroupSettingsTab({
                   </button>
                   <button
                     onClick={() => setShowRegenerateConfirm(false)}
-                    className="flex-1 rounded-lg bg-gray-100 py-2 text-xs font-medium text-gray-600 transition-all active:scale-[0.98]"
+                    className="flex-1 rounded-lg bg-slate-700 py-2 text-xs font-medium text-slate-300 transition-all active:scale-[0.98]"
                   >
                     Avbryt
                   </button>
@@ -509,14 +503,14 @@ function GroupSettingsTab({
       </div>
 
       {/* Member list */}
-      <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
-          <Users size={16} className="text-gray-500" />
-          <h3 className="text-sm font-semibold text-gray-700">
+      <div className="rounded-2xl bg-slate-900 border border-slate-700 overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-700 flex items-center gap-2">
+          <Users size={16} className="text-slate-400" />
+          <h3 className="text-sm font-semibold text-slate-200">
             Medlemmar ({groupDetails.members.length})
           </h3>
         </div>
-        <div className="divide-y divide-gray-50">
+        <div className="divide-y divide-slate-800">
           {sortedMembers.map((member) => {
             const isCurrentUser = member.user_id === currentUserId;
             const joinDate = new Date(member.joined_at);
@@ -530,12 +524,12 @@ function GroupSettingsTab({
               <div
                 key={member.user_id}
                 className={`flex items-center gap-3 px-5 py-3 ${
-                  isCurrentUser ? 'bg-orange-50/50' : ''
+                  isCurrentUser ? 'bg-emerald-500/10' : ''
                 }`}
               >
                 <div
                   className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white ${
-                    isCurrentUser ? 'bg-orange-500' : 'bg-gray-300'
+                    isCurrentUser ? 'bg-emerald-500' : 'bg-slate-600'
                   }`}
                 >
                   {member.profile?.avatar_url ||
@@ -546,15 +540,15 @@ function GroupSettingsTab({
                   <div className="flex items-center gap-2">
                     <p
                       className={`text-sm font-medium truncate ${
-                        isCurrentUser ? 'text-orange-700' : 'text-gray-800'
+                        isCurrentUser ? 'text-emerald-400' : 'text-slate-200'
                       }`}
                     >
-                      {member.profile?.display_name || 'Okänd'}
+                      {member.profile?.display_name || 'Okand'}
                       {isCurrentUser && ' (du)'}
                     </p>
                     {getRoleBadge(member.role)}
                   </div>
-                  <p className="text-[11px] text-gray-400">
+                  <p className="text-[11px] text-slate-400">
                     Gick med {joinDateStr}
                   </p>
                 </div>
@@ -564,41 +558,41 @@ function GroupSettingsTab({
         </div>
       </div>
 
-      {/* Leave group (non-owners only) */}
+      {/* Leave group */}
       {!isOwnerRole && (
-        <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-5">
+        <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
           {!showLeaveConfirm ? (
             <button
               onClick={() => setShowLeaveConfirm(true)}
-              className="flex items-center gap-2 text-sm text-red-400 hover:text-red-500 transition-colors"
+              className="flex items-center gap-2 text-sm text-rose-400 hover:text-rose-300 transition-colors"
             >
               <LogOut size={16} />
-              Lämna gruppen
+              Lamna gruppen
             </button>
           ) : (
             <div className="flex flex-col gap-3">
-              <p className="text-sm text-red-600">
-                Är du säker på att du vill lämna gruppen?
+              <p className="text-sm text-rose-400">
+                Ar du saker pa att du vill lamna gruppen?
               </p>
               {leaveError && (
-                <p className="text-xs text-red-500">{leaveError}</p>
+                <p className="text-xs text-rose-500">{leaveError}</p>
               )}
               <div className="flex gap-2">
                 <button
                   onClick={handleLeave}
                   disabled={leaving}
-                  className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  className="flex-1 rounded-xl bg-rose-500 py-2.5 text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
                   {leaving ? (
                     <Loader2 size={14} className="animate-spin" />
                   ) : (
                     <LogOut size={14} />
                   )}
-                  {leaving ? 'Lämnar...' : 'Ja, lämna'}
+                  {leaving ? 'Lamnar...' : 'Ja, lamna'}
                 </button>
                 <button
                   onClick={() => setShowLeaveConfirm(false)}
-                  className="flex-1 rounded-xl bg-gray-100 py-2.5 text-sm font-medium text-gray-600 transition-all active:scale-[0.98]"
+                  className="flex-1 rounded-xl bg-slate-700 py-2.5 text-sm font-medium text-slate-300 transition-all active:scale-[0.98]"
                 >
                   Avbryt
                 </button>
@@ -611,10 +605,6 @@ function GroupSettingsTab({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Main Group Page
-// ---------------------------------------------------------------------------
-
 export default function GroupPage() {
   const { user, profile, loading } = useAuth();
   const [members, setMembers] = useState<Profile[]>([]);
@@ -623,6 +613,7 @@ export default function GroupPage() {
   const [groupDetails, setGroupDetails] = useState<GroupDetails | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('leaderboard');
   const [dataLoading, setDataLoading] = useState(true);
+  const [damageMap, setDamageMap] = useState<Map<string, number>>(new Map());
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -632,15 +623,26 @@ export default function GroupPage() {
     setGroupId(userGroupId);
 
     if (userGroupId) {
-      const [groupMembers, feedData, details] = await Promise.all([
+      const [groupMembers, feedData, details, encounter] = await Promise.all([
         getGroupMembers(user.id),
         getActivityFeed(userGroupId),
         getGroupDetails(userGroupId),
+        getActiveBossEncounter(userGroupId),
       ]);
 
       setMembers(groupMembers);
       setFeed(feedData);
       setGroupDetails(details);
+
+      // Build damage map from current boss attacks
+      if (encounter) {
+        const attacks = await getEncounterAttacks(encounter.id);
+        const dMap = new Map<string, number>();
+        for (const atk of attacks) {
+          dMap.set(atk.user_id, (dMap.get(atk.user_id) || 0) + atk.damage);
+        }
+        setDamageMap(dMap);
+      }
     } else {
       setMembers([]);
       setFeed([]);
@@ -655,15 +657,14 @@ export default function GroupPage() {
   }, [loadData]);
 
   if (loading || !profile) return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-3 border-orange-500 border-t-transparent" />
-          <p className="text-sm text-gray-400">Laddar...</p>
+          <div className="h-8 w-8 animate-spin rounded-full border-3 border-emerald-500 border-t-transparent" />
+          <p className="text-sm text-slate-400">Laddar...</p>
         </div>
       </div>
     );
 
-  // User has no group — show join/create UI
   if (!dataLoading && !groupId) {
     return <NoGroupView userId={user!.id} onGroupJoined={loadData} />;
   }
@@ -671,23 +672,23 @@ export default function GroupPage() {
   return (
     <AppShell>
       {/* Header */}
-      <div className="bg-white px-5 pt-12 pb-4 border-b border-gray-100">
-        <h1 className="text-xl font-bold text-gray-900">
+      <div className="bg-slate-900 px-5 pt-12 pb-4 border-b border-slate-700">
+        <h1 className="text-xl font-bold text-slate-50">
           {groupDetails?.name || 'Grupp'}
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-slate-400 mt-1">
           Klassiker 2026 &middot; {members.length} medlemmar
         </p>
       </div>
 
       {/* Tab switcher */}
-      <div className="flex gap-1 px-4 py-3 bg-white border-b border-gray-100">
+      <div className="flex gap-1 px-4 py-3 bg-slate-900 border-b border-slate-700">
         <button
           onClick={() => setActiveTab('leaderboard')}
           className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${
             activeTab === 'leaderboard'
-              ? 'bg-orange-500 text-white'
-              : 'bg-gray-100 text-gray-500'
+              ? 'bg-emerald-500 text-white'
+              : 'bg-slate-800 text-slate-400'
           }`}
         >
           <Trophy size={14} className="inline mr-1 -mt-0.5" />
@@ -697,8 +698,8 @@ export default function GroupPage() {
           onClick={() => setActiveTab('feed')}
           className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${
             activeTab === 'feed'
-              ? 'bg-orange-500 text-white'
-              : 'bg-gray-100 text-gray-500'
+              ? 'bg-emerald-500 text-white'
+              : 'bg-slate-800 text-slate-400'
           }`}
         >
           Aktivitet
@@ -707,12 +708,12 @@ export default function GroupPage() {
           onClick={() => setActiveTab('settings')}
           className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${
             activeTab === 'settings'
-              ? 'bg-orange-500 text-white'
-              : 'bg-gray-100 text-gray-500'
+              ? 'bg-emerald-500 text-white'
+              : 'bg-slate-800 text-slate-400'
           }`}
         >
           <Settings size={14} className="inline mr-1 -mt-0.5" />
-          Inställningar
+          Installningar
         </button>
       </div>
 
@@ -725,29 +726,30 @@ export default function GroupPage() {
                 users={members}
                 config={config}
                 currentUserId={user!.id}
+                damageMap={damageMap}
               />
             ))}
 
             {/* Group stats */}
-            <div className="rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100 p-5">
-              <h3 className="text-sm font-semibold text-orange-700 mb-3">
+            <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
+              <h3 className="text-sm font-semibold text-slate-200 mb-3">
                 Gruppstats
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-2xl font-bold text-orange-600">
+                  <p className="text-2xl font-bold text-emerald-400">
                     {members.reduce((sum, u) => sum + u.total_ep, 0)}
                   </p>
-                  <p className="text-xs text-orange-500">Totala EP</p>
+                  <p className="text-xs text-slate-400">Totala EP</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-orange-600">
+                  <p className="text-2xl font-bold text-emerald-400">
                     {members.length > 0
                       ? Math.max(...members.map((u) => u.current_streak))
                       : 0}
                   </p>
-                  <p className="text-xs text-orange-500">
-                    Längsta aktiva streak
+                  <p className="text-xs text-slate-400">
+                    Langsta aktiva streak
                   </p>
                 </div>
               </div>

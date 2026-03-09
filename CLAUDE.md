@@ -30,9 +30,18 @@ src/
 │   ├── AppShell.tsx         # Layout wrapper (safe area + bottom nav)
 │   ├── BottomNav.tsx        # 5-tab bottom navigation
 │   ├── SessionReward.tsx    # Post-session EP reward animation
+│   ├── BadgeUnlockModal.tsx # Badge unlock celebration modal
+│   ├── StravaConnect.tsx    # Strava connection component
+│   ├── boss/                # Boss battle components
+│   │   ├── BossCard.tsx     # Hero boss battle card (HP bar, attacks, CTA)
+│   │   ├── BossHPBar.tsx    # Animated HP bar with color transitions
+│   │   ├── BossTimeline.tsx # Horizontal journey timeline
+│   │   ├── BossAttackLog.tsx # Recent attacks list
+│   │   └── WeaknessResistance.tsx # Sport weakness/resistance badges
+│   ├── leaderboard/
+│   │   └── DamageLeaderboard.tsx # Compact damage-dealt leaderboard
 │   └── dashboard/           # Dashboard-specific components
 │       ├── ActivityFeed.tsx
-│       ├── ExpeditionProgress.tsx
 │       ├── StreakBadge.tsx
 │       ├── TodayCard.tsx
 │       └── WeekSummary.tsx
@@ -72,12 +81,12 @@ export default function MyPage() {
   return (
     <AppShell>
       {/* Header */}
-      <div className="bg-white px-5 pt-12 pb-4 border-b border-gray-100">
-        <h1 className="text-xl font-bold text-gray-900">Page Title</h1>
+      <div className="bg-slate-900 px-5 pt-12 pb-4 border-b border-slate-700">
+        <h1 className="text-xl font-bold text-slate-50">Page Title</h1>
       </div>
       {/* Content */}
       <div className="flex flex-col gap-4 px-4 py-4">
-        {/* Cards with: rounded-2xl bg-white border border-gray-200 shadow-sm p-5 */}
+        {/* Cards with: rounded-2xl bg-slate-900 border border-slate-700 p-5 */}
       </div>
     </AppShell>
   );
@@ -108,9 +117,10 @@ All data goes through async functions in `store.ts`. Never use localStorage.
 ## Design System
 
 - **Language**: Swedish (all user-facing text)
-- **Theme**: Orange/amber accent (`orange-500` = #f97316)
-- **Cards**: `rounded-2xl bg-white border border-gray-200 shadow-sm`
-- **Gradient cards**: `bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100`
+- **Theme**: Dark RPG theme with emerald accent (`emerald-500` = #10b981, background `slate-950` = #0a0f1a)
+- **Cards**: `rounded-2xl bg-slate-900 border border-slate-700`
+- **Text**: `text-slate-50` (headings), `text-slate-200` (body), `text-slate-400` (secondary)
+- **Accents**: emerald (CTAs), rose (boss HP danger), amber (weakness indicators), violet (crit flash)
 - **Icons**: lucide-react, 14-20px
 - **Mobile-first**: designed for phone screens, bottom navigation
 

@@ -15,10 +15,6 @@ import {
 } from 'lucide-react';
 import type { Badge } from '@/types/database';
 
-// ---------------------------------------------------------------------------
-// Icon map: badge icon_key -> lucide-react component
-// ---------------------------------------------------------------------------
-
 const BADGE_ICON_MAP: Record<
   string,
   React.ComponentType<{ size?: number; className?: string }>
@@ -41,10 +37,6 @@ export function getBadgeIcon(
   return BADGE_ICON_MAP[iconKey] ?? Trophy;
 }
 
-// ---------------------------------------------------------------------------
-// BadgeUnlockModal
-// ---------------------------------------------------------------------------
-
 interface BadgeUnlockModalProps {
   badge: Badge;
   onDismiss: () => void;
@@ -58,7 +50,6 @@ export default function BadgeUnlockModal({
   const Icon = getBadgeIcon(badge.icon_key);
 
   useEffect(() => {
-    // Trigger entrance animation on mount
     requestAnimationFrame(() => setVisible(true));
   }, []);
 
@@ -70,33 +61,33 @@ export default function BadgeUnlockModal({
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-200 ${
-        visible ? 'bg-black/50 opacity-100' : 'bg-black/0 opacity-0'
+        visible ? 'bg-black/60 opacity-100' : 'bg-black/0 opacity-0'
       }`}
       onClick={handleDismiss}
     >
       <div
-        className={`relative mx-8 flex max-w-sm flex-col items-center gap-4 rounded-3xl bg-white p-8 shadow-2xl transition-all duration-500 ${
+        className={`relative mx-8 flex max-w-sm flex-col items-center gap-4 rounded-3xl bg-slate-900 border border-slate-700 p-8 shadow-2xl transition-all duration-500 ${
           visible ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Glow ring behind icon */}
         <div className="relative flex items-center justify-center">
-          <div className="absolute h-28 w-28 animate-pulse rounded-full bg-gradient-to-br from-orange-200 to-amber-100 opacity-60" />
-          <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-amber-500 shadow-lg">
+          <div className="absolute h-28 w-28 animate-pulse rounded-full bg-gradient-to-br from-emerald-500/30 to-emerald-400/10 opacity-60" />
+          <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-lg">
             <Icon size={36} className="text-white" />
           </div>
         </div>
 
         {/* Badge info */}
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-wider text-orange-500">
+          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
             Nytt badge!
           </p>
-          <h2 className="mt-1 text-xl font-bold text-gray-900">
+          <h2 className="mt-1 text-xl font-bold text-slate-50">
             {badge.name}
           </h2>
-          <p className="mt-2 text-sm text-gray-500">{badge.description}</p>
+          <p className="mt-2 text-sm text-slate-400">{badge.description}</p>
         </div>
 
         {/* Confetti dots */}
@@ -115,10 +106,10 @@ export default function BadgeUnlockModal({
                 className="h-2 w-2 rounded-full"
                 style={{
                   backgroundColor: [
-                    '#F97316',
+                    '#10B981',
                     '#3B82F6',
                     '#22C55E',
-                    '#EAB308',
+                    '#FBBF24',
                     '#8B5CF6',
                   ][Math.floor(Math.random() * 5)],
                 }}
@@ -130,7 +121,7 @@ export default function BadgeUnlockModal({
         {/* Dismiss button */}
         <button
           onClick={handleDismiss}
-          className="mt-2 w-full rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 py-3 text-sm font-bold text-white shadow-md transition-transform active:scale-[0.97]"
+          className="mt-2 w-full rounded-2xl bg-emerald-500 py-3 text-sm font-bold text-white shadow-md transition-transform active:scale-[0.97]"
         >
           Fantastiskt!
         </button>

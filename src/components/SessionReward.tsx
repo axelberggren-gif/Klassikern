@@ -22,8 +22,8 @@ export default function SessionReward({ session, onDone }: SessionRewardProps) {
   if (!show) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onDone}>
-      <div className="animate-slide-up flex flex-col items-center gap-4 rounded-3xl bg-white p-8 shadow-2xl mx-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onDone}>
+      <div className="animate-slide-up flex flex-col items-center gap-4 rounded-3xl bg-slate-900 border border-slate-700 p-8 shadow-2xl mx-8">
         {/* Confetti dots */}
         <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
           {Array.from({ length: 20 }).map((_, i) => (
@@ -39,7 +39,7 @@ export default function SessionReward({ session, onDone }: SessionRewardProps) {
               <div
                 className="h-2 w-2 rounded-full"
                 style={{
-                  backgroundColor: ['#F97316', '#3B82F6', '#22C55E', '#EAB308', '#8B5CF6'][
+                  backgroundColor: ['#10B981', '#3B82F6', '#22C55E', '#FBBF24', '#8B5CF6'][
                     Math.floor(Math.random() * 5)
                   ],
                 }}
@@ -51,28 +51,28 @@ export default function SessionReward({ session, onDone }: SessionRewardProps) {
         <div className="text-5xl">{sport.icon}</div>
 
         <div className="animate-ep-counter text-center">
-          <p className="text-4xl font-black text-orange-500">+{session.ep_earned} EP</p>
+          <p className="text-4xl font-black text-emerald-400">+{session.ep_earned} EP</p>
         </div>
 
-        <p className="text-lg font-semibold text-gray-800">
+        <p className="text-lg font-semibold text-slate-50">
           {session.is_bonus ? 'Bonuspass!' : 'Pass klart!'}
         </p>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-slate-400">
           {session.duration_minutes} min {sport.label.toLowerCase()}
         </p>
 
         {!session.is_bonus && (
-          <div className="flex items-center gap-2 rounded-full bg-green-50 px-4 py-2">
-            <span className="text-green-500">✓</span>
-            <span className="text-sm font-medium text-green-700">On track!</span>
+          <div className="flex items-center gap-2 rounded-full bg-emerald-500/15 px-4 py-2">
+            <span className="text-emerald-400">✓</span>
+            <span className="text-sm font-medium text-emerald-400">On track!</span>
           </div>
         )}
 
         <button
           onClick={onDone}
-          className="mt-2 text-sm font-medium text-gray-400"
+          className="mt-2 text-sm font-medium text-slate-400"
         >
-          Tryck för att stänga
+          Tryck for att stanga
         </button>
       </div>
     </div>

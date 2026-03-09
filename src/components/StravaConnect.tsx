@@ -58,43 +58,39 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
 
   if (loading) {
     return (
-      <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
+      <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
         <div className="animate-pulse flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gray-100" />
-          <div className="h-4 w-32 rounded bg-gray-100" />
+          <div className="h-10 w-10 rounded-xl bg-slate-800" />
+          <div className="h-4 w-32 rounded bg-slate-800" />
         </div>
       </div>
     );
   }
 
-  // -----------------------------------------------------------------------
-  // Connected state
-  // -----------------------------------------------------------------------
   if (connection) {
     return (
-      <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
+      <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <StravaLogo />
-            <h3 className="text-sm font-semibold text-gray-700">
+            <h3 className="text-sm font-semibold text-slate-200">
               Strava kopplad
             </h3>
-            <CheckCircle size={16} className="text-green-500" />
+            <CheckCircle size={16} className="text-emerald-400" />
           </div>
         </div>
 
-        <p className="text-xs text-gray-400 mb-4">
+        <p className="text-xs text-slate-400 mb-4">
           Atlet-ID: {connection.strava_athlete_id}
         </p>
 
-        {/* Sync button */}
         <button
           onClick={handleSync}
           disabled={syncing}
           className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors"
           style={{
-            backgroundColor: syncing ? '#e5e7eb' : '#FC4C02',
-            color: syncing ? '#9ca3af' : '#ffffff',
+            backgroundColor: syncing ? '#1a2236' : '#FC4C02',
+            color: syncing ? '#8b95a8' : '#ffffff',
           }}
         >
           <RefreshCw
@@ -104,18 +100,16 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
           {syncing ? 'Synkar...' : 'Synka nu'}
         </button>
 
-        {/* Sync result */}
         {syncResult && (
-          <p className="text-xs text-center text-gray-500 mt-2">
+          <p className="text-xs text-center text-slate-400 mt-2">
             {syncResult}
           </p>
         )}
 
-        {/* Disconnect link */}
         <button
           onClick={handleDisconnect}
           disabled={disconnecting}
-          className="flex w-full items-center justify-center gap-1.5 mt-3 py-2 text-xs text-gray-400 hover:text-red-500 transition-colors"
+          className="flex w-full items-center justify-center gap-1.5 mt-3 py-2 text-xs text-slate-400 hover:text-rose-400 transition-colors"
         >
           <Unlink size={12} />
           {disconnecting ? 'Kopplar fran...' : 'Koppla fran'}
@@ -124,19 +118,16 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
     );
   }
 
-  // -----------------------------------------------------------------------
-  // Not connected state
-  // -----------------------------------------------------------------------
   return (
-    <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
+    <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
       <div className="flex items-center gap-2 mb-2">
         <StravaLogo />
-        <h3 className="text-sm font-semibold text-gray-700">
+        <h3 className="text-sm font-semibold text-slate-200">
           Koppla Strava
         </h3>
       </div>
 
-      <p className="text-xs text-gray-400 mb-4">
+      <p className="text-xs text-slate-400 mb-4">
         Importera dina traningspass automatiskt fran Strava
       </p>
 
@@ -151,10 +142,6 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Strava logo (simple SVG inline)
-// ---------------------------------------------------------------------------
 
 function StravaLogo() {
   return (
