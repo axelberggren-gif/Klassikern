@@ -1,12 +1,40 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, RefreshCw, Unlink, ExternalLink } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { CheckCircle, RefreshCw, Unlink, ExternalLink, Zap } from 'lucide-react';
 import { getStravaConnection, disconnectStrava } from '@/lib/store';
+import { SPORT_CONFIG } from '@/lib/sport-config';
 import type { StravaConnection } from '@/types/database';
+import type { SportType } from '@/types/database';
 
 interface StravaConnectProps {
   userId: string;
+}
+
+interface SyncResult {
+  imported: number;
+  total_ep_earned: number;
+  by_sport: Record<string, number>;
+  message: string;
+  error?: string;
+}
+
+/** 15-minute auto-sync cooldown in milliseconds */
+const AUTO_SYNC_COOLDOWN_MS = 15 * 60 * 1000;
+
+/**
+ * Format a relative time string in Swedish, e.g. "3 min sedan", "2 timmar sedan".
+ */
+function formatRelativeTime(isoDate: string): string {
+  const diff = Date.now() - new Date(isoDate).getTime();
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return 'just nu';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min sedan`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ${hours === 1 ? 'timme' : 'timmar'} sedan`;
+  const days = Math.floor(hours / 24);
+  return `${days} ${days === 1 ? 'dag' : 'dagar'} sedan`;
 }
 
 export default function StravaConnect({ userId }: StravaConnectProps) {
@@ -14,7 +42,9 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-  const [syncResult, setSyncResult] = useState<string | null>(null);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const autoSyncTriggered = useRef(false);
 
   const loadConnection = useCallback(async () => {
     setLoading(true);
@@ -27,25 +57,44 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
     loadConnection();
   }, [loadConnection]);
 
-  async function handleSync() {
+  const handleSync = useCallback(async () => {
     setSyncing(true);
     setSyncResult(null);
+    setSyncError(null);
 
     try {
       const response = await fetch('/api/strava/sync', { method: 'POST' });
       const data = await response.json();
 
       if (response.ok) {
-        setSyncResult(data.message || `${data.imported} importerade`);
+        setSyncResult(data as SyncResult);
+        // Reload connection to get updated last_synced_at
+        const conn = await getStravaConnection(userId);
+        setConnection(conn);
       } else {
-        setSyncResult(data.error || 'Synkning misslyckades');
+        setSyncError(data.error || 'Synkning misslyckades');
       }
     } catch {
-      setSyncResult('Synkning misslyckades');
+      setSyncError('Synkning misslyckades');
     } finally {
       setSyncing(false);
     }
-  }
+  }, [userId]);
+
+  // Auto-sync on mount with 15-minute cooldown
+  useEffect(() => {
+    if (!connection || autoSyncTriggered.current || syncing) return;
+
+    const lastSynced = connection.last_synced_at;
+    const shouldSync =
+      !lastSynced ||
+      Date.now() - new Date(lastSynced).getTime() > AUTO_SYNC_COOLDOWN_MS;
+
+    if (shouldSync) {
+      autoSyncTriggered.current = true;
+      handleSync();
+    }
+  }, [connection, syncing, handleSync]);
 
   async function handleDisconnect() {
     setDisconnecting(true);
@@ -68,9 +117,12 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
   }
 
   if (connection) {
+    const displayName =
+      connection.athlete_name || `Atlet-ID: ${connection.strava_athlete_id}`;
+
     return (
       <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <StravaLogo />
             <h3 className="text-sm font-semibold text-slate-200">
@@ -80,9 +132,15 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
           </div>
         </div>
 
-        <p className="text-xs text-slate-400 mb-4">
-          Atlet-ID: {connection.strava_athlete_id}
-        </p>
+        {/* Athlete name + last synced */}
+        <div className="mb-4">
+          <p className="text-xs text-slate-400">{displayName}</p>
+          {connection.last_synced_at && (
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Senast synkad: {formatRelativeTime(connection.last_synced_at)}
+            </p>
+          )}
+        </div>
 
         <button
           onClick={handleSync}
@@ -100,10 +158,51 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
           {syncing ? 'Synkar...' : 'Synka nu'}
         </button>
 
+        {/* Rich sync result */}
         {syncResult && (
-          <p className="text-xs text-center text-slate-400 mt-2">
-            {syncResult}
-          </p>
+          <div className="mt-3 rounded-xl bg-slate-800 border border-slate-700 p-3">
+            {syncResult.imported === 0 ? (
+              <p className="text-xs text-center text-slate-400">
+                {syncResult.message}
+              </p>
+            ) : (
+              <>
+                {/* Summary line */}
+                <div className="flex items-center justify-center gap-1.5 mb-2">
+                  <Zap size={14} className="text-orange-500" />
+                  <p className="text-xs font-semibold text-slate-200">
+                    {syncResult.imported} pass importerade — {syncResult.total_ep_earned} EP
+                  </p>
+                </div>
+
+                {/* Per-sport breakdown */}
+                {Object.keys(syncResult.by_sport).length > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    {Object.entries(syncResult.by_sport).map(
+                      ([sport, count]) => {
+                        const config =
+                          SPORT_CONFIG[sport as SportType] ??
+                          SPORT_CONFIG.other;
+                        return (
+                          <span
+                            key={sport}
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${config.bgColor} ${config.textColor}`}
+                          >
+                            {config.icon} {count} {config.label}
+                          </span>
+                        );
+                      }
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Sync error */}
+        {syncError && (
+          <p className="text-xs text-center text-red-500 mt-2">{syncError}</p>
         )}
 
         <button

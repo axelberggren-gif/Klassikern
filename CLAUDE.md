@@ -19,8 +19,7 @@ src/
 ├── app/                    # Next.js App Router pages
 │   ├── page.tsx            # Dashboard (home)
 │   ├── layout.tsx          # Root layout
-│   ├── login/page.tsx      # Email + password login
-│   ├── onboarding/page.tsx # New user onboarding flow
+│   ├── login/page.tsx      # User picker + password login
 │   ├── log/page.tsx        # Log a training session
 │   ├── plan/page.tsx       # Weekly training plan
 │   ├── progress/page.tsx   # Personal stats & progress
@@ -29,10 +28,10 @@ src/
 ├── components/
 │   ├── AppShell.tsx         # Layout wrapper (safe area + bottom nav)
 │   ├── BottomNav.tsx        # 5-tab bottom navigation
-│   ├── SessionReward.tsx    # Post-session EP reward animation
+│   ├── SessionReward.tsx    # Post-session EP reward animation (2-phase: EP + boss damage)
 │   ├── BadgeUnlockModal.tsx # Badge unlock celebration modal
 │   ├── StravaConnect.tsx    # Strava connection component
-│   ├── boss/                # Boss battle components
+│   ├── boss/                # Boss battle components (dashboard hero)
 │   │   ├── BossCard.tsx     # Hero boss battle card (HP bar, attacks, CTA)
 │   │   ├── BossHPBar.tsx    # Animated HP bar with color transitions
 │   │   ├── BossTimeline.tsx # Horizontal journey timeline
@@ -40,17 +39,36 @@ src/
 │   │   └── WeaknessResistance.tsx # Sport weakness/resistance badges
 │   ├── leaderboard/
 │   │   └── DamageLeaderboard.tsx # Compact damage-dealt leaderboard
-│   └── dashboard/           # Dashboard-specific components
-│       ├── ActivityFeed.tsx
-│       ├── StreakBadge.tsx
-│       ├── TodayCard.tsx
-│       └── WeekSummary.tsx
+│   ├── dashboard/           # Dashboard-specific components
+│   │   ├── ActivityFeed.tsx
+│   │   ├── BossCard.tsx     # Simplified boss card (used in ExpeditionMap area)
+│   │   ├── StreakBadge.tsx
+│   │   ├── TodayCard.tsx
+│   │   └── WeekSummary.tsx
+│   └── group/               # Group page components (extracted)
+│       ├── BossBattleTab.tsx
+│       ├── GroupSettingsTab.tsx
+│       ├── Leaderboard.tsx
+│       └── NoGroupView.tsx
 ├── lib/
 │   ├── auth.ts              # useAuth() hook → { user, profile, loading, signOut }
 │   ├── supabase.ts          # Browser Supabase client (createClient)
 │   ├── supabase-server.ts   # Server Supabase client
-│   ├── store.ts             # All async data functions (Supabase queries)
+│   ├── store/               # Data layer (split by domain)
+│   │   ├── index.ts         # Re-exports all store functions
+│   │   ├── profiles.ts      # Profile queries
+│   │   ├── groups.ts        # Group membership & invites
+│   │   ├── sessions.ts      # Session logging & queries
+│   │   ├── feed.ts          # Activity feed
+│   │   ├── stats.ts         # User stats & week completion
+│   │   ├── badges.ts        # Badge definitions & user badges
+│   │   ├── boss.ts          # Boss battle system
+│   │   └── strava.ts        # Strava connection
+│   ├── date-utils.ts        # Centralized date/week calculations
+│   ├── expedition-waypoints.ts # Waypoint data for the progress map
 │   ├── ep-calculator.ts     # EP calculation logic
+│   ├── boss-engine.ts       # Boss damage calculations
+│   ├── badge-checker.ts     # Badge unlock logic
 │   ├── sport-config.ts      # Sport types, icons, colors
 │   ├── training-plan.ts     # Static 12-week training plan
 │   └── mock-data.ts         # Legacy mock data (not used in production)
@@ -60,7 +78,10 @@ src/
 supabase/
 └── migrations/
     ├── 001_initial_schema.sql  # All tables, indexes, functions
-    └── 002_rls_policies.sql    # Row-level security policies
+    ├── 002_rls_policies.sql    # Row-level security policies
+    ├── 003_login_redesign.sql  # User picker login, anon RLS, email backfill
+    ├── 006_boss_battles.sql    # Boss battle tables + 30 boss seed data
+    └── 007_boss_rls_policies.sql # RLS policies for boss tables
 ```
 
 ## Key Patterns
@@ -96,17 +117,20 @@ export default function MyPage() {
 ### Auth
 - `useAuth()` from `src/lib/auth.ts` provides the authenticated user and their profile
 - Middleware at `src/middleware.ts` handles session refresh and redirects unauthenticated users to `/login`
-- Protected routes: everything except `/login` and `/onboarding`
+- Protected routes: everything except `/login`
 - **No self-registration** — users are created manually in Supabase dashboard: Authentication → Users → Add user
 - **IMPORTANT**: The `useAuth` hook must use `getUser()` (server call) instead of `getSession()` (cookie-only) for the initial auth check. Using `getSession()` causes "stuck on loading" on Vercel preview deployments because Vercel Deployment Protection, the @serwist/next service worker, and Supabase's `navigator.locks` interfere with cookie-based session reads. This is a recurring issue — do NOT switch back to `getSession()`.
 
-### Data Layer (src/lib/store.ts)
-All data goes through async functions in `store.ts`. Never use localStorage.
-- **Profile**: `updateCurrentUser(userId, updates)`
-- **Group**: `getGroupMembers(userId)`, `getUserGroupId(userId)`, `getGroupDetails(groupId)`, `joinGroupByCode(userId, code)`, `leaveGroup(userId, groupId)`, `regenerateInviteCode(groupId)`, `createGroup(userId, name)`
-- **Sessions**: `getUserSessions(userId)`, `logSession({...})`
-- **Feed**: `getActivityFeed(groupId)`
-- **Stats**: `getUserStats(userId)`, `getWeekCompletionStats(weekNumber, userId)`
+### Data Layer (src/lib/store/)
+All data goes through async functions in `store/`. Import from `@/lib/store` (the index re-exports everything). Never use localStorage.
+- **Profile** (`store/profiles.ts`): `updateCurrentUser(userId, updates)`, `getLoginProfiles()`
+- **Group** (`store/groups.ts`): `getGroupMembers(userId)`, `getUserGroupId(userId)`, `getGroupDetails(groupId)`, `joinGroupByCode(userId, code)`, `leaveGroup(userId, groupId)`, `regenerateInviteCode(groupId)`, `createGroup(userId, name)`
+- **Sessions** (`store/sessions.ts`): `getUserSessions(userId)`, `logSession({...})`
+- **Feed** (`store/feed.ts`): `getActivityFeed(groupId)`
+- **Stats** (`store/stats.ts`): `getUserStats(userId)`, `getWeekCompletionStats(weekNumber, userId)`
+- **Badges** (`store/badges.ts`): `getAllBadges()`, `getUserBadges(userId)`
+- **Boss** (`store/boss.ts`): `getActiveBossEncounter(groupId)`, `getBossAttacks(encounterId)`, `attackBoss({...})`, `getBossHistory(groupId)`, `getUserBossTrophies(userId)`, `getAllBossDefinitions()`
+- **Strava** (`store/strava.ts`): `getStravaConnection(userId)`, `disconnectStrava(userId)`
 
 ### Database Types (src/types/database.ts)
 - All table types follow `Database['public']['Tables'][name]['Row']` pattern
@@ -139,6 +163,12 @@ All data goes through async functions in `store.ts`. Never use localStorage.
 - `expedition_waypoints` — gamified progress map
 
 RLS policies in `002_rls_policies.sql` — users can only access their own data and their group's data.
+
+### RLS Gotchas
+
+- **Anon + recursive policies = infinite recursion.** PostgreSQL evaluates ALL permissive RLS policies (OR'd together), even if one already grants access. If a policy on `profiles` joins `group_members`, and `group_members` has a self-referencing policy, anon queries will trigger infinite recursion (`"infinite recursion detected in policy for relation"`).
+- **Fix:** Any RLS policy that joins other RLS-protected tables (e.g. `group_members`) must use `TO authenticated` — never `TO public` (which includes `anon`). Anon-facing policies should be simple `USING (true)` without subqueries on other protected tables.
+- **After adding new columns**, run `NOTIFY pgrst, 'reload schema';` in the SQL Editor so PostgREST picks up the schema change.
 
 ## Notion Backlog
 
@@ -178,7 +208,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 - Always run `npm run build` after changes to verify TypeScript compiles
 - The `middleware.ts` file uses the deprecated convention (Next.js 16 warns about "proxy") — this is fine for now
-- When adding new Supabase query functions, add them to `src/lib/store.ts`
+- When adding new Supabase query functions, add them to the appropriate file in `src/lib/store/` and re-export from `store/index.ts`
 - When adding new types, add them to `src/types/database.ts`
 - The `User` type is a legacy alias for `Profile & { group_id }` — prefer using `Profile` directly
 - When adding Supabase Edge Functions (Deno), add the functions directory to `tsconfig.json` `exclude` to prevent Deno imports from breaking the Next.js build

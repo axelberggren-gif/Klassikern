@@ -116,13 +116,33 @@ body {
 
 /* Boss battle animations */
 @keyframes boss-pulse {
-  0%, 100% { box-shadow: 0 0 20px 0 rgba(244, 63, 94, 0.3); }
-  50% { box-shadow: 0 0 40px 8px rgba(244, 63, 94, 0.6); }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+@keyframes boss-pulse-border {
+  0%, 100% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.4), 0 0 20px rgba(239, 68, 68, 0.15); }
+  50% { box-shadow: 0 0 16px rgba(239, 68, 68, 0.7), 0 0 40px rgba(239, 68, 68, 0.3); }
+}
+
+@keyframes boss-hp-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 @keyframes boss-hp-drain {
   0% { filter: brightness(1.8); }
   100% { filter: brightness(1); }
+}
+
+@keyframes boss-glow {
+  0%, 100% { filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.5)); }
+  50% { filter: drop-shadow(0 0 24px rgba(239, 68, 68, 0.8)); }
+}
+
+@keyframes boss-border-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  50% { box-shadow: 0 0 8px 2px rgba(239, 68, 68, 0.3); }
 }
 
 @keyframes crit-flash {
@@ -137,11 +157,73 @@ body {
   50% { border-color: rgba(244, 63, 94, 0.8); }
 }
 
+/* SessionReward animations */
+@keyframes boss-shake {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  10% { transform: translate(-4px, -2px) rotate(-2deg); }
+  20% { transform: translate(4px, 2px) rotate(2deg); }
+  30% { transform: translate(-4px, 2px) rotate(-1deg); }
+  40% { transform: translate(4px, -2px) rotate(1deg); }
+  50% { transform: translate(-2px, 2px) rotate(-2deg); }
+  60% { transform: translate(2px, -2px) rotate(2deg); }
+  70% { transform: translate(-4px, 0px) rotate(-1deg); }
+  80% { transform: translate(4px, 0px) rotate(1deg); }
+  90% { transform: translate(-2px, -2px) rotate(0deg); }
+}
+
+@keyframes critical-flash {
+  0% { opacity: 0; }
+  20% { opacity: 0.7; }
+  100% { opacity: 0; }
+}
+
+@keyframes damage-pop {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes killing-blow-scale {
+  0% { transform: scale(0); opacity: 0; }
+  40% { transform: scale(1.15); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes screen-shake {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  10% { transform: translate(-10px, -6px) rotate(-3deg); }
+  20% { transform: translate(8px, 4px) rotate(2deg); }
+  30% { transform: translate(-6px, 8px) rotate(-2deg); }
+  40% { transform: translate(10px, -4px) rotate(3deg); }
+  50% { transform: translate(-8px, 6px) rotate(-3deg); }
+  60% { transform: translate(6px, -8px) rotate(2deg); }
+  70% { transform: translate(-10px, 2px) rotate(-1deg); }
+  80% { transform: translate(8px, -6px) rotate(3deg); }
+  90% { transform: translate(-4px, 4px) rotate(-2deg); }
+}
+
+@keyframes particle-burst {
+  0% {
+    transform: rotate(var(--angle)) translateY(0px) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--angle)) translateY(calc(-1 * var(--distance))) scale(0);
+    opacity: 0;
+  }
+}
+
 .animate-confetti { animation: confetti-fall 2s ease-in-out forwards; }
 .animate-ep-counter { animation: ep-counter 0.6s ease-out forwards; }
 .animate-slide-up { animation: slide-up 0.4s ease-out forwards; }
 .animate-pulse-glow { animation: pulse-glow 2s infinite; }
 .animate-boss-pulse { animation: boss-pulse 2s ease-in-out infinite; }
+.animate-boss-glow { animation: boss-border-glow 2s ease-in-out infinite; }
 .animate-boss-hp-drain { animation: boss-hp-drain 0.5s ease-out; }
 .animate-crit-flash { animation: crit-flash 0.6s ease-out; }
 .animate-last-stand-border { animation: last-stand-border 1.5s ease-in-out infinite; }
+.animate-boss-shake { animation: boss-shake 0.6s ease-in-out infinite; }
+.animate-damage-pop { animation: damage-pop 0.4s ease-out forwards; }
+.animate-killing-blow { animation: killing-blow-scale 0.6s ease-out forwards; }
+.animate-screen-shake { animation: screen-shake 0.5s ease-in-out; }

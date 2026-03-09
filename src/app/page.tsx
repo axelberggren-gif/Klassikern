@@ -17,17 +17,18 @@ import {
   getActivityFeed,
   getUserGroupId,
   getActiveBossEncounter,
-  getEncounterAttacks,
-  getGroupBossHistory,
+  getBossAttacks,
+  getBossHistory,
 } from '@/lib/store';
-import { getCurrentWeekNumber, getPlanForWeek } from '@/lib/training-plan';
+import { getPlanForWeek } from '@/lib/training-plan';
+import { getCurrentWeekNumber, getWeekRange } from '@/lib/date-utils';
 import type {
   Profile,
   PlannedSession,
   Session,
   ActivityFeedItemWithUser,
   BossEncounterWithBoss,
-  BossAttackWithUser,
+  BossAttack,
 } from '@/types/database';
 
 export default function DashboardPage() {
@@ -41,7 +42,7 @@ export default function DashboardPage() {
   const [weekNumber, setWeekNumber] = useState(1);
   const [totalSessions, setTotalSessions] = useState(0);
   const [bossEncounter, setBossEncounter] = useState<BossEncounterWithBoss | null>(null);
-  const [bossAttacks, setBossAttacks] = useState<BossAttackWithUser[]>([]);
+  const [bossAttacks, setBossAttacks] = useState<BossAttack[]>([]);
   const [bossHistory, setBossHistory] = useState<BossEncounterWithBoss[]>([]);
 
   useEffect(() => {
@@ -70,10 +71,7 @@ export default function DashboardPage() {
       setTodaySessions(sessions.filter((s) => s.date === today));
 
       // Week sessions
-      const weekStart = new Date(2026, 1, 23);
-      weekStart.setDate(weekStart.getDate() + (wk - 1) * 7);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 7);
+      const { start: weekStart, end: weekEnd } = getWeekRange(wk);
       setWeekSessions(
         sessions.filter((s) => {
           const d = new Date(s.date);
@@ -87,14 +85,14 @@ export default function DashboardPage() {
         const [feedData, encounter, history] = await Promise.all([
           getActivityFeed(groupId),
           getActiveBossEncounter(groupId),
-          getGroupBossHistory(groupId),
+          getBossHistory(groupId),
         ]);
         setFeed(feedData);
         setBossEncounter(encounter);
         setBossHistory(history);
 
         if (encounter) {
-          const attacks = await getEncounterAttacks(encounter.id);
+          const attacks = await getBossAttacks(encounter.id);
           setBossAttacks(attacks);
         }
       }
@@ -141,7 +139,7 @@ export default function DashboardPage() {
 
       <div className="flex flex-col gap-4 px-4">
         {/* Boss Card — HERO */}
-        <BossCard encounter={bossEncounter} attacks={bossAttacks} />
+        <BossCard encounter={bossEncounter} attacks={bossAttacks} members={members} />
 
         {/* Compact Damage Leaderboard */}
         <DamageLeaderboard entries={damageEntries} currentUserId={user!.id} />
@@ -183,7 +181,7 @@ export default function DashboardPage() {
 }
 
 function buildDamageEntries(
-  attacks: BossAttackWithUser[],
+  attacks: BossAttack[],
   members: Profile[]
 ) {
   const damageMap = new Map<string, number>();
@@ -194,12 +192,6 @@ function buildDamageEntries(
   const nameMap = new Map<string, string>();
   for (const m of members) {
     nameMap.set(m.id, m.display_name);
-  }
-  // Also get names from attack user objects
-  for (const attack of attacks) {
-    if (attack.user && !nameMap.has(attack.user_id)) {
-      nameMap.set(attack.user_id, attack.user.display_name);
-    }
   }
 
   return Array.from(damageMap.entries()).map(([userId, totalDamage]) => ({

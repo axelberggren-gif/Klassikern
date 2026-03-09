@@ -32,14 +32,14 @@ function getFeedText(item: ActivityFeedItemWithUser): string {
       if (data.is_last_stand) {
         return String(data.message || `Last Stand! ${data.boss_emoji} ${data.boss_name} har bara ${data.remaining_hp} HP kvar!`);
       }
-      return `attackerade ${data.boss_emoji} ${data.boss_name} for ${data.damage} skada!`;
+      return `attackerade ${data.boss_emoji} ${data.boss_name} för ${data.damage} skada!`;
     }
     case 'boss_critical_hit':
-      return `landade en KRITISK TRAFF pa ${data.boss_emoji} ${data.boss_name}! ${data.damage} skada! ⚡`;
+      return `landade en KRITISK TRÄFF på ${data.boss_emoji} ${data.boss_name}! ${data.damage} skada! ⚡`;
     case 'boss_defeated':
-      return `${data.boss_emoji} ${data.boss_name} ar besegrad! 🎉`;
+      return `${data.boss_emoji} ${data.boss_name} är besegrad! 🎉`;
     case 'boss_failed':
-      return `${data.boss_emoji || '💀'} Bossen overlevde veckan... Debuff nasta vecka!`;
+      return `${data.boss_emoji || '💀'} Bossen överlevde veckan... Debuff nästa vecka!`;
     default:
       return 'gjorde nagot fantastiskt!';
   }

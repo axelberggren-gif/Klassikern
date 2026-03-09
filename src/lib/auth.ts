@@ -23,10 +23,12 @@ export interface AuthState {
 /**
  * React hook that provides the current auth state.
  *
- * - Subscribes to Supabase auth state changes
- * - Fetches the user's profile from the profiles table
- * - Handles the case where auth session exists but profile doesn't
- * - Provides a signOut function that clears the session and redirects
+ * Architecture:
+ *  - Effect 1: getUser() for initial check + onAuthStateChange for updates
+ *  - Effect 2: when user changes, fetch profile in a separate async context
+ *
+ * This split avoids a deadlock in @supabase/ssr where both getSession()
+ * and database queries hang when called inside onAuthStateChange.
  */
 export function useAuth(): AuthState {
   const router = useRouter();
@@ -34,27 +36,8 @@ export function useAuth(): AuthState {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId: string) => {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('[useAuth] fetchProfile error:', error.message, error.code);
-      return null;
-    }
-
-    if (!data) {
-      console.error('[useAuth] fetchProfile: no data returned for user', userId);
-      return null;
-    }
-
-    return data;
-  }, []);
-
+  // Effect 1: Get initial user + listen for auth state changes.
+  // No DB calls here — profile fetching happens in Effect 2.
   useEffect(() => {
     const supabase = createClient();
     let cancelled = false;
@@ -78,61 +61,40 @@ export function useAuth(): AuthState {
 
         setUser(currentUser);
 
-        if (currentUser) {
-          const userProfile = await fetchProfile(currentUser.id);
-          if (cancelled) return;
-          setProfile(userProfile);
-
-          // If no profile exists at all, sign out (admin must create user properly)
-          if (!userProfile) {
-            console.warn('[useAuth] No profile found, signing out');
-            await supabase.auth.signOut();
-            window.location.href = '/login';
-            return;
-          }
-        } else {
-          // No authenticated user — redirect to login to avoid stuck loading state
+        if (!currentUser) {
+          setLoading(false);
           const pathname = window.location.pathname;
           if (pathname !== '/login' && pathname !== '/onboarding') {
             router.replace('/login');
           }
         }
+        // If currentUser exists, loading stays true until Effect 2 fetches profile
       } catch (err) {
         if (cancelled) return;
-        // Auth check failed — user is not authenticated
         console.error('[useAuth] initAuth error:', err);
         setUser(null);
         setProfile(null);
+        setLoading(false);
         const pathname = window.location.pathname;
         if (pathname !== '/login' && pathname !== '/onboarding') {
           router.replace('/login');
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
         }
       }
     };
 
     initAuth();
 
-    // Subscribe to auth state changes
+    // Subscribe to auth state changes (sign-in, sign-out, token refresh)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
       const sessionUser = session?.user ?? null;
       setUser(sessionUser);
 
-      if (sessionUser) {
-        const userProfile = await fetchProfile(sessionUser.id);
-        if (!cancelled) setProfile(userProfile);
-      } else {
-        setProfile(null);
-      }
-
       if (event === 'SIGNED_OUT') {
         setProfile(null);
+        setLoading(false);
         router.replace('/login');
       }
     });
@@ -141,7 +103,41 @@ export function useAuth(): AuthState {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [fetchProfile, router]);
+  }, [router]);
+
+  // Effect 2: Fetch profile when user changes (runs OUTSIDE onAuthStateChange).
+  useEffect(() => {
+    if (!user) {
+      setProfile(null);
+      return;
+    }
+
+    const supabase = createClient();
+    let cancelled = false;
+
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+
+        if (error || !data) {
+          console.error('[useAuth] profile fetch failed:', error?.message ?? 'no data');
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+
+        setProfile(data);
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const signOut = useCallback(async () => {
     const supabase = createClient();

@@ -6,14 +6,15 @@ import BossHPBar from './BossHPBar';
 import WeaknessResistance from './WeaknessResistance';
 import BossAttackLog from './BossAttackLog';
 import { isLastStandWindow } from '@/lib/boss-engine';
-import type { BossEncounterWithBoss, BossAttackWithUser } from '@/types/database';
+import type { BossEncounterWithBoss, BossAttack, Profile } from '@/types/database';
 
 interface BossCardProps {
   encounter: BossEncounterWithBoss | null;
-  attacks: BossAttackWithUser[];
+  attacks: BossAttack[];
+  members: Profile[];
 }
 
-export default function BossCard({ encounter, attacks }: BossCardProps) {
+export default function BossCard({ encounter, attacks, members }: BossCardProps) {
   const router = useRouter();
 
   if (!encounter) {
@@ -26,7 +27,7 @@ export default function BossCard({ encounter, attacks }: BossCardProps) {
     );
   }
 
-  const lastStand = isLastStandWindow(encounter);
+  const lastStand = isLastStandWindow(new Date(encounter.week_end));
   const boss = encounter.boss;
 
   return (
@@ -43,7 +44,7 @@ export default function BossCard({ encounter, attacks }: BossCardProps) {
         <div className="flex-1 min-w-0">
           <h2 className="text-xl font-bold text-slate-50">{boss.name}</h2>
           <p className="mt-1 text-xs italic text-slate-400 line-clamp-2">
-            {boss.lore_text}
+            {boss.lore}
           </p>
         </div>
       </div>
@@ -74,7 +75,7 @@ export default function BossCard({ encounter, attacks }: BossCardProps) {
         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
           Senaste attacker
         </p>
-        <BossAttackLog attacks={attacks} />
+        <BossAttackLog attacks={attacks} members={members} />
       </div>
 
       {/* CTA */}

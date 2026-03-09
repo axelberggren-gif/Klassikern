@@ -1,6 +1,12 @@
 'use client';
 
+import { PROGRAM_START_DATE, MS_PER_WEEK } from '@/lib/date-utils';
 import type { BossEncounterWithBoss } from '@/types/database';
+
+function getWeekFromDate(dateStr: string): number {
+  const diff = new Date(dateStr).getTime() - PROGRAM_START_DATE.getTime();
+  return Math.max(1, Math.floor(diff / MS_PER_WEEK) + 1);
+}
 
 interface BossTimelineProps {
   history: BossEncounterWithBoss[];
@@ -17,11 +23,13 @@ export default function BossTimeline({ history, currentEncounter, currentWeek }:
   }[] = [];
 
   // Sort history by week ascending
-  const sorted = [...history].sort((a, b) => a.week_number - b.week_number);
+  const sorted = [...history].sort((a, b) =>
+    new Date(a.week_start).getTime() - new Date(b.week_start).getTime()
+  );
   for (const enc of sorted) {
     nodes.push({
       emoji: enc.boss.emoji,
-      week: enc.week_number,
+      week: getWeekFromDate(enc.week_start),
       status: enc.status as 'defeated' | 'failed',
     });
   }
@@ -30,7 +38,7 @@ export default function BossTimeline({ history, currentEncounter, currentWeek }:
   if (currentEncounter) {
     nodes.push({
       emoji: currentEncounter.boss.emoji,
-      week: currentEncounter.week_number,
+      week: getWeekFromDate(currentEncounter.week_start),
       status: 'active',
     });
   }

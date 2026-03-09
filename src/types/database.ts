@@ -1,12 +1,6 @@
 // ============================================================================
 // Supabase Database Types
 // ============================================================================
-// Generated-style types matching the Supabase schema defined in
-// supabase/migrations/001_initial_schema.sql
-//
-// These follow the standard Supabase pattern so the typed client works
-// with .from('table_name') calls.
-// ============================================================================
 
 // ---------------------------------------------------------------------------
 // Enum types (matching Postgres custom types)
@@ -25,8 +19,8 @@ export type FeedEventType =
   | 'boss_defeated'
   | 'boss_failed'
   | 'boss_critical_hit';
+export type BossEncounterStatus = 'active' | 'defeated' | 'failed' | 'upcoming';
 export type GroupMemberRole = 'owner' | 'admin' | 'member';
-export type BossEncounterStatus = 'active' | 'defeated' | 'failed';
 
 // ---------------------------------------------------------------------------
 // Database interface (Supabase generated types pattern)
@@ -423,38 +417,79 @@ export interface Database {
         };
         Relationships: [];
       };
-      boss_definitions: {
+      strava_connections: {
         Row: {
           id: string;
-          name: string;
-          emoji: string;
-          lore_text: string;
-          base_hp: number;
-          weakness: SportType | null;
-          resistance: SportType | null;
-          sort_order: number;
+          user_id: string;
+          strava_athlete_id: number;
+          access_token: string;
+          refresh_token: string;
+          token_expires_at: string;
+          scope: string | null;
+          athlete_name: string | null;
+          last_synced_at: string | null;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
-          name: string;
-          emoji: string;
-          lore_text: string;
-          base_hp: number;
-          weakness?: SportType | null;
-          resistance?: SportType | null;
-          sort_order: number;
+          user_id: string;
+          strava_athlete_id: number;
+          access_token: string;
+          refresh_token: string;
+          token_expires_at: string;
+          scope?: string | null;
+          athlete_name?: string | null;
+          last_synced_at?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
+          user_id?: string;
+          strava_athlete_id?: number;
+          access_token?: string;
+          refresh_token?: string;
+          token_expires_at?: string;
+          scope?: string | null;
+          athlete_name?: string | null;
+          last_synced_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      boss_definitions: {
+        Row: {
+          id: number;
+          name: string;
+          emoji: string;
+          lore: string;
+          level: number;
+          base_hp: number;
+          weakness: SportType | null;
+          resistance: SportType | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          name: string;
+          emoji: string;
+          lore: string;
+          level: number;
+          base_hp: number;
+          weakness?: SportType | null;
+          resistance?: SportType | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
           name?: string;
           emoji?: string;
-          lore_text?: string;
+          lore?: string;
+          level?: number;
           base_hp?: number;
           weakness?: SportType | null;
           resistance?: SportType | null;
-          sort_order?: number;
         };
         Relationships: [];
       };
@@ -462,45 +497,42 @@ export interface Database {
         Row: {
           id: string;
           group_id: string;
-          boss_id: string;
-          week_number: number;
+          boss_id: number;
           status: BossEncounterStatus;
           max_hp: number;
           current_hp: number;
-          killing_blow_user_id: string | null;
-          debuff_modifier: number;
-          started_at: string;
-          ended_at: string | null;
+          week_start: string;
+          week_end: string;
+          defeated_at: string | null;
+          defeated_by: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           group_id: string;
-          boss_id: string;
-          week_number: number;
+          boss_id: number;
           status?: BossEncounterStatus;
           max_hp: number;
-          current_hp: number;
-          killing_blow_user_id?: string | null;
-          debuff_modifier?: number;
-          started_at?: string;
-          ended_at?: string | null;
+          current_hp?: number;
+          week_start: string;
+          week_end: string;
+          defeated_at?: string | null;
+          defeated_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           group_id?: string;
-          boss_id?: string;
-          week_number?: number;
+          boss_id?: number;
           status?: BossEncounterStatus;
           max_hp?: number;
           current_hp?: number;
-          killing_blow_user_id?: string | null;
-          debuff_modifier?: number;
-          started_at?: string;
-          ended_at?: string | null;
+          week_start?: string;
+          week_end?: string;
+          defeated_at?: string | null;
+          defeated_by?: string | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -542,69 +574,27 @@ export interface Database {
           id: string;
           user_id: string;
           encounter_id: string;
-          boss_id: string;
-          damage_dealt: number;
-          is_killing_blow: boolean;
+          boss_id: number;
           bonus_ep: number;
-          week_number: number;
-          earned_at: string;
+          is_killing_blow: boolean;
+          created_at: string;
         };
         Insert: {
           id?: string;
           user_id: string;
           encounter_id: string;
-          boss_id: string;
-          damage_dealt?: number;
-          is_killing_blow?: boolean;
+          boss_id: number;
           bonus_ep?: number;
-          week_number: number;
-          earned_at?: string;
+          is_killing_blow?: boolean;
+          created_at?: string;
         };
         Update: {
           id?: string;
           user_id?: string;
           encounter_id?: string;
-          boss_id?: string;
-          damage_dealt?: number;
-          is_killing_blow?: boolean;
+          boss_id?: number;
           bonus_ep?: number;
-          week_number?: number;
-          earned_at?: string;
-        };
-        Relationships: [];
-      };
-      strava_connections: {
-        Row: {
-          id: string;
-          user_id: string;
-          strava_athlete_id: number;
-          access_token: string;
-          refresh_token: string;
-          token_expires_at: string;
-          scope: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          strava_athlete_id: number;
-          access_token: string;
-          refresh_token: string;
-          token_expires_at: string;
-          scope?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          strava_athlete_id?: number;
-          access_token?: string;
-          refresh_token?: string;
-          token_expires_at?: string;
-          scope?: string | null;
-          updated_at?: string;
+          is_killing_blow?: boolean;
         };
         Relationships: [];
       };
@@ -636,8 +626,6 @@ export interface Database {
 // ---------------------------------------------------------------------------
 // Convenience type aliases (Row types for common use)
 // ---------------------------------------------------------------------------
-// These match the existing interface names used throughout the app,
-// ensuring backward compatibility.
 
 export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type Group = Database['public']['Tables']['groups']['Row'];
@@ -656,10 +644,7 @@ export type BossEncounter = Database['public']['Tables']['boss_encounters']['Row
 export type BossAttack = Database['public']['Tables']['boss_attacks']['Row'];
 export type BossTrophy = Database['public']['Tables']['boss_trophies']['Row'];
 
-// Backward-compatible alias: the old code uses "User" instead of "Profile".
-// The mock-data / localStorage layer also uses group_id on users, even though
-// the database models this as a many-to-many via group_members. We keep the
-// field here so the existing MVP code compiles without changes.
+// Backward-compatible alias
 export type User = Profile & {
   group_id: string | null;
 };
@@ -681,6 +666,9 @@ export type FeedReactionInsert = Database['public']['Tables']['feed_reactions'][
 export type UserBadgeInsert = Database['public']['Tables']['user_badges']['Insert'];
 export type StravaConnectionInsert = Database['public']['Tables']['strava_connections']['Insert'];
 export type StravaConnectionUpdate = Database['public']['Tables']['strava_connections']['Update'];
+export type BossEncounterInsert = Database['public']['Tables']['boss_encounters']['Insert'];
+export type BossAttackInsert = Database['public']['Tables']['boss_attacks']['Insert'];
+export type BossTrophyInsert = Database['public']['Tables']['boss_trophies']['Insert'];
 
 // ---------------------------------------------------------------------------
 // Joined / extended types for queries
@@ -710,6 +698,10 @@ export type GroupMemberWithProfile = {
   profile: Profile;
 };
 
+export interface BossEncounterWithBoss extends BossEncounter {
+  boss: BossDefinition;
+}
+
 export type GroupDetails = {
   id: string;
   name: string;
@@ -717,14 +709,6 @@ export type GroupDetails = {
   created_by: string | null;
   members: GroupMemberWithProfile[];
 };
-
-export interface BossEncounterWithBoss extends BossEncounter {
-  boss: BossDefinition;
-}
-
-export interface BossTrophyWithBoss extends BossTrophy {
-  boss: BossDefinition;
-}
 
 export interface BossAttackWithUser extends BossAttack {
   user: Profile;

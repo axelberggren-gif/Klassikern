@@ -1,19 +1,25 @@
 'use client';
 
-import type { BossAttackWithUser } from '@/types/database';
+import type { BossAttack, Profile } from '@/types/database';
 
 interface BossAttackLogProps {
-  attacks: BossAttackWithUser[];
+  attacks: BossAttack[];
+  members: Profile[];
   maxItems?: number;
 }
 
-export default function BossAttackLog({ attacks, maxItems = 5 }: BossAttackLogProps) {
-  const displayAttacks = attacks.slice(0, maxItems);
+export default function BossAttackLog({ attacks, members, maxItems = 5 }: BossAttackLogProps) {
+  const displayAttacks = attacks.slice(-maxItems).reverse();
 
   if (displayAttacks.length === 0) {
     return (
       <p className="text-xs text-slate-400 italic">Ingen har attackerat ännu...</p>
     );
+  }
+
+  const nameMap = new Map<string, string>();
+  for (const m of members) {
+    nameMap.set(m.id, m.display_name);
   }
 
   return (
@@ -26,7 +32,7 @@ export default function BossAttackLog({ attacks, maxItems = 5 }: BossAttackLogPr
           }`}
         >
           <span className="text-slate-200 truncate">
-            {attack.user?.display_name || 'Okänd'}
+            {nameMap.get(attack.user_id) || 'Okänd'}
           </span>
           <span className={`font-bold tabular-nums ${
             attack.is_critical ? 'text-violet-500' : 'text-rose-500'

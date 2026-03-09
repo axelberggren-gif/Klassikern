@@ -1,85 +1,118 @@
-import type { SportType, BossDefinition, BossEncounter } from '@/types/database';
-
-const WEAKNESS_MULTIPLIER = 1.5;
-const RESISTANCE_MULTIPLIER = 0.75;
-const CRIT_CHANCE = 0.10;
-const CRIT_MULTIPLIER = 2.0;
-const COMBO_THRESHOLD = 3;
-const COMBO_BONUS = 1.2;
-const LAST_STAND_THRESHOLD = 0.10;
-const LAST_STAND_MULTIPLIER = 2.0;
+import type { SportType } from '@/types/database';
 
 export interface DamageResult {
   damage: number;
   isCritical: boolean;
-  isWeakness: boolean;
-  isResistance: boolean;
-  isLastStand: boolean;
+  modifiers: string[];
 }
 
-export function calculateBossDamage(params: {
-  epEarned: number;
+export interface LokiModifier {
+  name: string;
+  description: string;
+  effect: 'swap_weakness' | 'reduce_ep' | 'no_crits' | 'reverse_combo';
+}
+
+interface CalculateBossDamageParams {
+  ep: number;
   sportType: SportType;
-  boss: BossDefinition;
-  encounter: BossEncounter;
-  todayAttackerCount: number;
-}): DamageResult {
-  let damage = params.epEarned;
-  let isWeakness = false;
-  let isResistance = false;
+  bossWeakness: SportType;
+  bossResistance: SportType;
+  uniqueAttackersThisWeek: number;
+  debuffModifier?: number;
+}
 
-  // Weakness/resistance modifiers
-  if (params.boss.weakness === params.sportType) {
-    damage *= WEAKNESS_MULTIPLIER;
-    isWeakness = true;
-  } else if (params.boss.resistance === params.sportType) {
-    damage *= RESISTANCE_MULTIPLIER;
-    isResistance = true;
+export function calculateBossDamage({
+  ep,
+  sportType,
+  bossWeakness,
+  bossResistance,
+  uniqueAttackersThisWeek,
+  debuffModifier,
+}: CalculateBossDamageParams): DamageResult {
+  let damage = ep;
+  const modifiers: string[] = [];
+
+  if (sportType === bossWeakness) {
+    damage *= 1.5;
+    modifiers.push('weakness');
+  } else if (sportType === bossResistance) {
+    damage *= 0.75;
+    modifiers.push('resistance');
   }
 
-  // Crit chance (10% → 2x damage)
-  const isCritical = Math.random() < CRIT_CHANCE;
+  const isCritical = Math.random() < 0.1;
   if (isCritical) {
-    damage *= CRIT_MULTIPLIER;
+    damage *= 2;
+    modifiers.push('critical');
   }
 
-  // Combo bonus (3+ unique attackers today → +20%)
-  if (params.todayAttackerCount >= COMBO_THRESHOLD) {
-    damage *= COMBO_BONUS;
+  if (uniqueAttackersThisWeek >= 3) {
+    damage *= 1.2;
+    modifiers.push('combo');
   }
 
-  // Debuff modifier from previous failed boss
-  if (params.encounter.debuff_modifier && params.encounter.debuff_modifier !== 1) {
-    damage *= Number(params.encounter.debuff_modifier);
-  }
-
-  // Last Stand (boss ≤10% HP → double damage)
-  const isLastStand =
-    params.encounter.current_hp <= params.encounter.max_hp * LAST_STAND_THRESHOLD;
-  if (isLastStand) {
-    damage *= LAST_STAND_MULTIPLIER;
+  if (debuffModifier !== undefined && debuffModifier !== 1) {
+    damage *= debuffModifier;
+    modifiers.push('debuff');
   }
 
   return {
     damage: Math.round(damage),
     isCritical,
-    isWeakness,
-    isResistance,
-    isLastStand,
+    modifiers,
   };
 }
 
-export function scaleBossHP(baseHp: number, groupSize: number): number {
-  return Math.round(baseHp * (groupSize / 4));
+export function scaleBossHP(baseHP: number, groupSize: number): number {
+  return Math.round(baseHP * (1 + (groupSize - 1) * 0.4));
 }
 
-export function getBossForWeek(weekNumber: number, totalBosses: number): number {
-  return ((weekNumber - 1) % totalBosses) + 1;
+export function getBossForWeek(weekNumber: number): number {
+  if (weekNumber <= 0) return 1;
+  if (weekNumber > 30) return ((weekNumber - 1) % 30) + 1;
+  return weekNumber;
 }
 
-export function isLastStandWindow(encounter: BossEncounter): boolean {
-  return (
-    encounter.current_hp <= encounter.max_hp * LAST_STAND_THRESHOLD &&
-    encounter.current_hp > 0
-  );
+export function isLastStandWindow(weekEnd: Date): boolean {
+  const now = new Date();
+  const msUntilEnd = weekEnd.getTime() - now.getTime();
+  const twentyFourHours = 24 * 60 * 60 * 1000;
+  return msUntilEnd > 0 && msUntilEnd <= twentyFourHours;
+}
+
+const LOKI_MODIFIERS: LokiModifier[] = [
+  {
+    name: 'Spegelvänd svaghet',
+    description: 'Bossens svaghet och resistans byter plats',
+    effect: 'swap_weakness',
+  },
+  {
+    name: 'EP-stöld',
+    description: 'Loki stjäl 25% av dina EP innan skada beräknas',
+    effect: 'reduce_ep',
+  },
+  {
+    name: 'Inga kritiska träffar',
+    description: 'Loki blockerar alla kritiska träffar denna vecka',
+    effect: 'no_crits',
+  },
+  {
+    name: 'Omvänd combo',
+    description: 'Combo-bonus ger -10% istället för +20%',
+    effect: 'reverse_combo',
+  },
+];
+
+export function getLokiModifiers(): LokiModifier[] {
+  const count = Math.random() < 0.5 ? 1 : 2;
+  const shuffled = [...LOKI_MODIFIERS].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
+
+export function getDebuffForNextWeek(defeatedBossLevel: number): number {
+  if (defeatedBossLevel === 24) return 0.75;
+  if (defeatedBossLevel >= 25) return 0.85;
+  if (defeatedBossLevel >= 20) return 0.9;
+  if (defeatedBossLevel >= 10) return 0.95;
+  return 1;
 }
