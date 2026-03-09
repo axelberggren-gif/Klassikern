@@ -432,6 +432,8 @@ export interface Database {
           refresh_token: string;
           token_expires_at: string;
           scope: string | null;
+          athlete_name: string | null;
+          last_synced_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -443,6 +445,8 @@ export interface Database {
           refresh_token: string;
           token_expires_at: string;
           scope?: string | null;
+          athlete_name?: string | null;
+          last_synced_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -454,6 +458,8 @@ export interface Database {
           refresh_token?: string;
           token_expires_at?: string;
           scope?: string | null;
+          athlete_name?: string | null;
+          last_synced_at?: string | null;
           updated_at?: string;
         };
         Relationships: [];

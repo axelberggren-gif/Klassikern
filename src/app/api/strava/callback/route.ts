@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get('state');
   const error = searchParams.get('error');
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const baseUrl = new URL(request.url).origin;
 
   // Handle user denying access
   if (error) {
@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
           refresh_token: tokenData.refresh_token,
           token_expires_at: new Date(tokenData.expires_at * 1000).toISOString(),
           scope: 'activity:read_all',
+          athlete_name: `${tokenData.athlete.firstname} ${tokenData.athlete.lastname}`.trim(),
         },
         { onConflict: 'user_id' }
       );
