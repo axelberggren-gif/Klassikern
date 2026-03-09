@@ -214,6 +214,37 @@ export function mapStravaToSportType(stravaType: string): SportType {
 }
 
 // ---------------------------------------------------------------------------
+// Smart effort mapping
+// ---------------------------------------------------------------------------
+
+/**
+ * Estimate effort_rating (1-5) from Strava's suffer_score or average HR.
+ * Falls back to 3 when no data is available.
+ */
+export function mapStravaToEffort(activity: StravaActivity): EffortRating {
+  // Primary: use suffer_score (Strava's "Relative Effort")
+  if (activity.suffer_score != null && activity.suffer_score > 0) {
+    if (activity.suffer_score >= 150) return 5;
+    if (activity.suffer_score >= 100) return 4;
+    if (activity.suffer_score >= 50) return 3;
+    if (activity.suffer_score >= 20) return 2;
+    return 1;
+  }
+
+  // Fallback: use average heart rate
+  if (activity.average_heartrate != null && activity.average_heartrate > 0) {
+    if (activity.average_heartrate >= 170) return 5;
+    if (activity.average_heartrate >= 150) return 4;
+    if (activity.average_heartrate >= 130) return 3;
+    if (activity.average_heartrate >= 110) return 2;
+    return 1;
+  }
+
+  // No data available — default to moderate
+  return 3 as EffortRating;
+}
+
+// ---------------------------------------------------------------------------
 // Map Strava activity to session data
 // ---------------------------------------------------------------------------
 
@@ -249,7 +280,7 @@ export function mapStravaToSession(activity: StravaActivity): MappedSession {
     date,
     duration_minutes: durationMinutes,
     distance_km: distanceKm,
-    effort_rating: 3 as EffortRating,
+    effort_rating: mapStravaToEffort(activity),
     note: `Strava: ${activity.name}`,
     strava_activity_id: activity.id,
   };

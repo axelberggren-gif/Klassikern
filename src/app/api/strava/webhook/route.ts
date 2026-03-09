@@ -205,6 +205,12 @@ export async function POST(request: NextRequest) {
     })
     .eq('id', connection.user_id);
 
+  // Update last_synced_at
+  await supabase
+    .from('strava_connections')
+    .update({ last_synced_at: new Date().toISOString() })
+    .eq('user_id', connection.user_id);
+
   // Add to activity feed if user has a group
   const { data: membership } = await supabase
     .from('group_members')

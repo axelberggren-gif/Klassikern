@@ -91,6 +91,10 @@ export async function POST() {
   const activities = await getStravaActivities(accessToken, thirtyDaysAgo);
 
   if (activities.length === 0) {
+    await supabase
+      .from('strava_connections')
+      .update({ last_synced_at: new Date().toISOString() })
+      .eq('user_id', user.id);
     return NextResponse.json({ imported: 0, message: 'Inga nya aktiviteter hittades' });
   }
 
@@ -111,12 +115,17 @@ export async function POST() {
   );
 
   if (newActivities.length === 0) {
+    await supabase
+      .from('strava_connections')
+      .update({ last_synced_at: new Date().toISOString() })
+      .eq('user_id', user.id);
     return NextResponse.json({ imported: 0, message: 'Alla aktiviteter redan importerade' });
   }
 
   // Import new activities
   let importedCount = 0;
   let totalNewEP = 0;
+  const bySport: Record<string, number> = {};
 
   // Get user's group for activity feed
   const { data: membership } = await supabase
@@ -158,6 +167,7 @@ export async function POST() {
 
     totalNewEP += ep;
     importedCount++;
+    bySport[mapped.sport_type] = (bySport[mapped.sport_type] ?? 0) + 1;
 
     // Add to activity feed if user has a group
     if (groupId) {
@@ -186,9 +196,16 @@ export async function POST() {
       .eq('id', user.id);
   }
 
+  // Update last_synced_at
+  await supabase
+    .from('strava_connections')
+    .update({ last_synced_at: new Date().toISOString() })
+    .eq('user_id', user.id);
+
   return NextResponse.json({
     imported: importedCount,
     total_ep_earned: totalNewEP,
+    by_sport: bySport,
     message: `${importedCount} aktivitet${importedCount !== 1 ? 'er' : ''} importerade`,
   });
 }
