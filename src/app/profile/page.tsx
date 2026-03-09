@@ -22,8 +22,8 @@ import AppShell from '@/components/AppShell';
 import { getBadgeIcon } from '@/components/BadgeUnlockModal';
 import StravaConnect from '@/components/StravaConnect';
 import { useAuth } from '@/lib/auth';
-import { updateCurrentUser, getUserBadges, getAllBadges, getUserTrophies, getAllBossDefinitions } from '@/lib/store';
-import type { Badge, UserBadgeWithBadge, BossDefinition, BossTrophyWithBoss } from '@/types/database';
+import { updateCurrentUser, getUserBadges, getAllBadges, getUserBossTrophies, getAllBossDefinitions } from '@/lib/store';
+import type { Badge, UserBadgeWithBadge, BossDefinition, BossTrophy } from '@/types/database';
 
 // ---------------------------------------------------------------------------
 // Inline editable field component
@@ -168,7 +168,7 @@ export default function ProfilePage() {
   const [allBadgeDefs, setAllBadgeDefs] = useState<Badge[]>([]);
   const [earnedBadges, setEarnedBadges] = useState<UserBadgeWithBadge[]>([]);
   const [allBossDefs, setAllBossDefs] = useState<BossDefinition[]>([]);
-  const [trophies, setTrophies] = useState<BossTrophyWithBoss[]>([]);
+  const [trophies, setTrophies] = useState<(BossTrophy & { boss: BossDefinition })[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -176,7 +176,7 @@ export default function ProfilePage() {
       getAllBadges(),
       getUserBadges(user.id),
       getAllBossDefinitions(),
-      getUserTrophies(user.id),
+      getUserBossTrophies(user.id),
     ]).then(([badges, userBadges, bossDefs, userTrophies]) => {
       setAllBadgeDefs(badges);
       setEarnedBadges(userBadges);
@@ -396,15 +396,14 @@ export default function ProfilePage() {
                     </span>
                     {earned && trophy && (
                       <div className="flex flex-col items-center gap-0.5">
-                        <span className="text-[9px] text-gray-500">
-                          {trophy.damage_dealt} skada
-                        </span>
-                        <span className="text-[9px] text-gray-400">
-                          Vecka {trophy.week_number}
-                        </span>
+                        {trophy.bonus_ep > 0 && (
+                          <span className="text-[9px] text-gray-500">
+                            +{trophy.bonus_ep} EP
+                          </span>
+                        )}
                         {trophy.is_killing_blow && (
                           <span className="text-[9px] font-bold text-orange-600">
-                            ⚔️ Dödsstöt
+                            Dödsstöt
                           </span>
                         )}
                       </div>

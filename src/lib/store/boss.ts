@@ -298,6 +298,20 @@ export async function getUserBossTrophies(
   });
 }
 
+export async function getAllBossDefinitions(): Promise<BossDefinition[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('boss_definitions')
+    .select('*')
+    .order('level', { ascending: true });
+
+  if (error || !data) {
+    console.error('Error fetching boss definitions:', error);
+    return [];
+  }
+  return data;
+}
+
 export async function getBossHistory(
   groupId: string
 ): Promise<BossEncounterWithBoss[]> {
