@@ -28,13 +28,20 @@ src/
 ├── components/
 │   ├── AppShell.tsx         # Layout wrapper (safe area + bottom nav)
 │   ├── BottomNav.tsx        # 5-tab bottom navigation
-│   ├── SessionReward.tsx    # Post-session EP reward animation
-│   ├── BadgeUnlockModal.tsx # Badge reveal animation
-│   ├── StravaConnect.tsx    # Strava auth UI
+│   ├── SessionReward.tsx    # Post-session EP reward animation (2-phase: EP + boss damage)
+│   ├── BadgeUnlockModal.tsx # Badge unlock celebration modal
+│   ├── StravaConnect.tsx    # Strava connection component
+│   ├── boss/                # Boss battle components (dashboard hero)
+│   │   ├── BossCard.tsx     # Hero boss battle card (HP bar, attacks, CTA)
+│   │   ├── BossHPBar.tsx    # Animated HP bar with color transitions
+│   │   ├── BossTimeline.tsx # Horizontal journey timeline
+│   │   ├── BossAttackLog.tsx # Recent attacks list
+│   │   └── WeaknessResistance.tsx # Sport weakness/resistance badges
+│   ├── leaderboard/
+│   │   └── DamageLeaderboard.tsx # Compact damage-dealt leaderboard
 │   ├── dashboard/           # Dashboard-specific components
 │   │   ├── ActivityFeed.tsx
-│   │   ├── ExpeditionMap.tsx
-│   │   ├── ExpeditionProgress.tsx
+│   │   ├── BossCard.tsx     # Simplified boss card (used in ExpeditionMap area)
 │   │   ├── StreakBadge.tsx
 │   │   ├── TodayCard.tsx
 │   │   └── WeekSummary.tsx
@@ -95,12 +102,12 @@ export default function MyPage() {
   return (
     <AppShell>
       {/* Header */}
-      <div className="bg-white px-5 pt-12 pb-4 border-b border-gray-100">
-        <h1 className="text-xl font-bold text-gray-900">Page Title</h1>
+      <div className="bg-slate-900 px-5 pt-12 pb-4 border-b border-slate-700">
+        <h1 className="text-xl font-bold text-slate-50">Page Title</h1>
       </div>
       {/* Content */}
       <div className="flex flex-col gap-4 px-4 py-4">
-        {/* Cards with: rounded-2xl bg-white border border-gray-200 shadow-sm p-5 */}
+        {/* Cards with: rounded-2xl bg-slate-900 border border-slate-700 p-5 */}
       </div>
     </AppShell>
   );
@@ -112,6 +119,7 @@ export default function MyPage() {
 - Middleware at `src/middleware.ts` handles session refresh and redirects unauthenticated users to `/login`
 - Protected routes: everything except `/login`
 - **No self-registration** — users are created manually in Supabase dashboard: Authentication → Users → Add user
+- **IMPORTANT**: The `useAuth` hook must use `getUser()` (server call) instead of `getSession()` (cookie-only) for the initial auth check. Using `getSession()` causes "stuck on loading" on Vercel preview deployments because Vercel Deployment Protection, the @serwist/next service worker, and Supabase's `navigator.locks` interfere with cookie-based session reads. This is a recurring issue — do NOT switch back to `getSession()`.
 
 ### Data Layer (src/lib/store/)
 All data goes through async functions in `store/`. Import from `@/lib/store` (the index re-exports everything). Never use localStorage.
@@ -121,7 +129,7 @@ All data goes through async functions in `store/`. Import from `@/lib/store` (th
 - **Feed** (`store/feed.ts`): `getActivityFeed(groupId)`
 - **Stats** (`store/stats.ts`): `getUserStats(userId)`, `getWeekCompletionStats(weekNumber, userId)`
 - **Badges** (`store/badges.ts`): `getAllBadges()`, `getUserBadges(userId)`
-- **Boss** (`store/boss.ts`): `getActiveBossEncounter(groupId)`, `getBossAttacks(encounterId)`, `attackBoss({...})`, `getBossHistory(groupId)`
+- **Boss** (`store/boss.ts`): `getActiveBossEncounter(groupId)`, `getBossAttacks(encounterId)`, `attackBoss({...})`, `getBossHistory(groupId)`, `getUserBossTrophies(userId)`, `getAllBossDefinitions()`
 - **Strava** (`store/strava.ts`): `getStravaConnection(userId)`, `disconnectStrava(userId)`
 
 ### Database Types (src/types/database.ts)
@@ -133,9 +141,10 @@ All data goes through async functions in `store/`. Import from `@/lib/store` (th
 ## Design System
 
 - **Language**: Swedish (all user-facing text)
-- **Theme**: Orange/amber accent (`orange-500` = #f97316)
-- **Cards**: `rounded-2xl bg-white border border-gray-200 shadow-sm`
-- **Gradient cards**: `bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100`
+- **Theme**: Dark RPG theme with emerald accent (`emerald-500` = #10b981, background `slate-950` = #0a0f1a)
+- **Cards**: `rounded-2xl bg-slate-900 border border-slate-700`
+- **Text**: `text-slate-50` (headings), `text-slate-200` (body), `text-slate-400` (secondary)
+- **Accents**: emerald (CTAs), rose (boss HP danger), amber (weakness indicators), violet (crit flash)
 - **Icons**: lucide-react, 14-20px
 - **Mobile-first**: designed for phone screens, bottom navigation
 
@@ -202,3 +211,4 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 - When adding new Supabase query functions, add them to the appropriate file in `src/lib/store/` and re-export from `store/index.ts`
 - When adding new types, add them to `src/types/database.ts`
 - The `User` type is a legacy alias for `Profile & { group_id }` — prefer using `Profile` directly
+- When adding Supabase Edge Functions (Deno), add the functions directory to `tsconfig.json` `exclude` to prevent Deno imports from breaking the Next.js build

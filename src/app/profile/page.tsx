@@ -25,10 +25,6 @@ import { useAuth } from '@/lib/auth';
 import { updateCurrentUser, getUserBadges, getAllBadges, getUserBossTrophies, getAllBossDefinitions } from '@/lib/store';
 import type { Badge, UserBadgeWithBadge, BossDefinition, BossTrophy } from '@/types/database';
 
-// ---------------------------------------------------------------------------
-// Inline editable field component
-// ---------------------------------------------------------------------------
-
 function InlineEdit({
   value,
   onSave,
@@ -55,7 +51,6 @@ function InlineEdit({
     }
   }, [editing]);
 
-  // Keep draft in sync when value changes externally
   useEffect(() => {
     if (!editing) setDraft(String(value));
   }, [value, editing]);
@@ -89,7 +84,7 @@ function InlineEdit({
   if (editing) {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-500 min-w-[100px]">{label}</span>
+        <span className="text-sm text-slate-400 min-w-[100px]">{label}</span>
         <input
           ref={inputRef}
           type={type}
@@ -97,14 +92,14 @@ function InlineEdit({
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
           onKeyDown={handleKeyDown}
-          className="flex-1 rounded-lg border border-orange-300 bg-orange-50 px-3 py-1.5 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-orange-200"
+          className="flex-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-sm text-slate-50 outline-none focus:ring-2 focus:ring-emerald-500/20"
           min={type === 'number' ? 1 : undefined}
         />
-        {suffix && <span className="text-xs text-gray-400">{suffix}</span>}
+        {suffix && <span className="text-xs text-slate-400">{suffix}</span>}
         <button
           onClick={commit}
           disabled={saving}
-          className="flex h-7 w-7 items-center justify-center rounded-full bg-orange-500 text-white"
+          className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white"
         >
           <Check size={14} />
         </button>
@@ -114,29 +109,25 @@ function InlineEdit({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-gray-500 min-w-[100px]">{label}</span>
+      <span className="text-sm text-slate-400 min-w-[100px]">{label}</span>
       <button
         onClick={() => setEditing(true)}
-        className="flex flex-1 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-50 active:bg-gray-100 text-left"
+        className="flex flex-1 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 active:bg-slate-700 text-left"
       >
         <span>
           {value}
           {suffix ? ` ${suffix}` : ''}
         </span>
-        <Pencil size={13} className="text-gray-300 ml-auto flex-shrink-0" />
+        <Pencil size={13} className="text-slate-500 ml-auto flex-shrink-0" />
       </button>
       {saved && (
-        <span className="text-xs text-green-500 font-medium animate-slide-up">
+        <span className="text-xs text-emerald-400 font-medium animate-slide-up">
           Sparat!
         </span>
       )}
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Placeholder settings row
-// ---------------------------------------------------------------------------
 
 function PlaceholderRow({
   icon: Icon,
@@ -147,20 +138,16 @@ function PlaceholderRow({
 }) {
   return (
     <div className="flex items-center gap-3 py-3">
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100">
-        <Icon size={18} className="text-gray-400" />
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800">
+        <Icon size={18} className="text-slate-400" />
       </div>
-      <span className="flex-1 text-sm text-gray-400">{label}</span>
-      <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] font-medium text-gray-400">
+      <span className="flex-1 text-sm text-slate-400">{label}</span>
+      <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-[10px] font-medium text-slate-400">
         Kommer snart
       </span>
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Profile page
-// ---------------------------------------------------------------------------
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -186,10 +173,10 @@ export default function ProfilePage() {
   }, [user]);
 
   if (loading || !profile) return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-3 border-orange-500 border-t-transparent" />
-          <p className="text-sm text-gray-400">Laddar...</p>
+          <div className="h-8 w-8 animate-spin rounded-full border-3 border-emerald-500 border-t-transparent" />
+          <p className="text-sm text-slate-400">Laddar...</p>
         </div>
       </div>
     );
@@ -213,80 +200,80 @@ export default function ProfilePage() {
   return (
     <AppShell>
       {/* Header */}
-      <div className="bg-white px-5 pt-12 pb-4 border-b border-gray-100">
+      <div className="bg-slate-900 px-5 pt-12 pb-4 border-b border-slate-700">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="text-gray-400">
+          <button onClick={() => router.back()} className="text-slate-400">
             <ArrowLeft size={24} />
           </button>
-          <h1 className="text-xl font-bold text-gray-900">Profil</h1>
+          <h1 className="text-xl font-bold text-slate-50">Profil</h1>
         </div>
       </div>
 
       <div className="flex flex-col gap-4 px-4 py-4">
         {/* Profile header */}
         <div className="flex flex-col items-center gap-3 py-4">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-orange-500 text-3xl font-bold text-white shadow-md">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-3xl font-bold text-white shadow-md">
             {initial}
           </div>
           <div className="text-center">
-            <h2 className="text-lg font-bold text-gray-900">
+            <h2 className="text-lg font-bold text-slate-50">
               {profile.display_name}
             </h2>
-            <p className="text-sm text-gray-400">{user?.email}</p>
-            <p className="text-xs text-gray-300 mt-1">
+            <p className="text-sm text-slate-400">{user?.email}</p>
+            <p className="text-xs text-slate-500 mt-1">
               Medlem sedan {memberSince}
             </p>
           </div>
         </div>
 
         {/* Stats overview */}
-        <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">
+        <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
+          <h3 className="text-sm font-semibold text-slate-200 mb-4">
             Statistik
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50">
-                <Zap size={18} className="text-orange-500" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15">
+                <Zap size={18} className="text-emerald-400" />
               </div>
               <div>
-                <p className="text-lg font-bold text-gray-800">
+                <p className="text-lg font-bold text-slate-50">
                   {profile.total_ep}
                 </p>
-                <p className="text-xs text-gray-500">Total EP</p>
+                <p className="text-xs text-slate-400">Total EP</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/15">
                 <Flame size={18} className="text-red-500" />
               </div>
               <div>
-                <p className="text-lg font-bold text-gray-800">
+                <p className="text-lg font-bold text-slate-50">
                   {profile.current_streak}
                 </p>
-                <p className="text-xs text-gray-500">Nuvarande streak</p>
+                <p className="text-xs text-slate-400">Nuvarande streak</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50">
-                <Trophy size={18} className="text-amber-500" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400/15">
+                <Trophy size={18} className="text-amber-400" />
               </div>
               <div>
-                <p className="text-lg font-bold text-gray-800">
+                <p className="text-lg font-bold text-slate-50">
                   {profile.longest_streak}
                 </p>
-                <p className="text-xs text-gray-500">Langsta streak</p>
+                <p className="text-xs text-slate-400">Langsta streak</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15">
                 <Snowflake size={18} className="text-blue-500" />
               </div>
               <div>
-                <p className="text-lg font-bold text-gray-800">
+                <p className="text-lg font-bold text-slate-50">
                   {profile.streak_freezes_remaining}
                 </p>
-                <p className="text-xs text-gray-500">Streak freezes</p>
+                <p className="text-xs text-slate-400">Streak freezes</p>
               </div>
             </div>
           </div>
@@ -294,10 +281,10 @@ export default function ProfilePage() {
 
         {/* Badges card */}
         {allBadgeDefs.length > 0 && (
-          <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
+          <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-700">Badges</h3>
-              <span className="text-xs font-medium text-gray-400">
+              <h3 className="text-sm font-semibold text-slate-200">Badges</h3>
+              <span className="text-xs font-medium text-slate-400">
                 {earnedBadges.length}/{allBadgeDefs.length}
               </span>
             </div>
@@ -314,31 +301,31 @@ export default function ProfilePage() {
                     key={badge.id}
                     className={`flex flex-col items-center gap-1.5 rounded-xl p-3 text-center transition-all ${
                       earned
-                        ? 'bg-gradient-to-b from-orange-50 to-amber-50 border border-orange-100'
-                        : 'bg-gray-50 border border-gray-100 opacity-50'
+                        ? 'bg-emerald-500/10 border border-emerald-500/20'
+                        : 'bg-slate-800 border border-slate-700 opacity-50'
                     }`}
                   >
                     <div
                       className={`flex h-10 w-10 items-center justify-center rounded-full ${
                         earned
-                          ? 'bg-gradient-to-br from-orange-400 to-amber-500'
-                          : 'bg-gray-200'
+                          ? 'bg-gradient-to-br from-emerald-400 to-emerald-500'
+                          : 'bg-slate-700'
                       }`}
                     >
                       <Icon
                         size={18}
-                        className={earned ? 'text-white' : 'text-gray-400'}
+                        className={earned ? 'text-white' : 'text-slate-400'}
                       />
                     </div>
                     <span
                       className={`text-[11px] font-semibold leading-tight ${
-                        earned ? 'text-gray-800' : 'text-gray-400'
+                        earned ? 'text-slate-200' : 'text-slate-400'
                       }`}
                     >
                       {badge.name}
                     </span>
                     {earned && userBadge && (
-                      <span className="text-[9px] text-gray-400">
+                      <span className="text-[9px] text-slate-400">
                         {new Date(userBadge.earned_at).toLocaleDateString(
                           'sv-SE',
                           { day: 'numeric', month: 'short' }
@@ -354,13 +341,13 @@ export default function ProfilePage() {
 
         {/* Boss trophies card */}
         {allBossDefs.length > 0 && (
-          <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
+          <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <span className="text-base">⚔️</span>
-                <h3 className="text-sm font-semibold text-gray-700">Boss-troféer</h3>
+                <h3 className="text-sm font-semibold text-slate-200">Boss-trofeer</h3>
               </div>
-              <span className="text-xs font-medium text-gray-400">
+              <span className="text-xs font-medium text-slate-400">
                 {trophies.length}/{allBossDefs.length}
               </span>
             </div>
@@ -374,22 +361,22 @@ export default function ProfilePage() {
                     key={boss.id}
                     className={`flex flex-col items-center gap-1.5 rounded-xl p-3 text-center transition-all ${
                       earned
-                        ? 'bg-gradient-to-b from-orange-50 to-amber-50 border border-orange-100'
-                        : 'bg-gray-50 border border-gray-100 opacity-50'
+                        ? 'bg-emerald-500/10 border border-emerald-500/20'
+                        : 'bg-slate-800 border border-slate-700 opacity-50'
                     }`}
                   >
                     <div
                       className={`flex h-10 w-10 items-center justify-center rounded-full text-lg ${
                         earned
-                          ? 'bg-gradient-to-br from-orange-400 to-amber-500'
-                          : 'bg-gray-200'
+                          ? 'bg-gradient-to-br from-emerald-400 to-emerald-500'
+                          : 'bg-slate-700'
                       }`}
                     >
                       {earned ? boss.emoji : '🔒'}
                     </div>
                     <span
                       className={`text-[11px] font-semibold leading-tight ${
-                        earned ? 'text-gray-800' : 'text-gray-400'
+                        earned ? 'text-slate-200' : 'text-slate-400'
                       }`}
                     >
                       {boss.name}
@@ -397,13 +384,13 @@ export default function ProfilePage() {
                     {earned && trophy && (
                       <div className="flex flex-col items-center gap-0.5">
                         {trophy.bonus_ep > 0 && (
-                          <span className="text-[9px] text-gray-500">
+                          <span className="text-[9px] text-slate-400">
                             +{trophy.bonus_ep} EP
                           </span>
                         )}
                         {trophy.is_killing_blow && (
-                          <span className="text-[9px] font-bold text-orange-600">
-                            Dödsstöt
+                          <span className="text-[9px] font-bold text-emerald-400">
+                            ⚔️ Dodsstot
                           </span>
                         )}
                       </div>
@@ -416,12 +403,12 @@ export default function ProfilePage() {
         )}
 
         {/* Goals card */}
-        <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">
+        <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
+          <h3 className="text-sm font-semibold text-slate-200 mb-4">
             Mal
           </h3>
           <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2 text-gray-400 mb-1">
+            <div className="flex items-center gap-2 text-slate-400 mb-1">
               <Bike size={14} />
               <span className="text-xs font-medium">Vatternrundan</span>
             </div>
@@ -433,7 +420,7 @@ export default function ProfilePage() {
               type="number"
             />
 
-            <div className="border-t border-gray-100 pt-3 flex items-center gap-2 text-gray-400 mb-1">
+            <div className="border-t border-slate-700 pt-3 flex items-center gap-2 text-slate-400 mb-1">
               <Waves size={14} />
               <span className="text-xs font-medium">Vansbrosimningen</span>
             </div>
@@ -445,7 +432,7 @@ export default function ProfilePage() {
               type="number"
             />
 
-            <div className="border-t border-gray-100 pt-3 flex items-center gap-2 text-gray-400 mb-1">
+            <div className="border-t border-slate-700 pt-3 flex items-center gap-2 text-slate-400 mb-1">
               <PersonStanding size={14} />
               <span className="text-xs font-medium">Lidingoloppet</span>
             </div>
@@ -460,8 +447,8 @@ export default function ProfilePage() {
         </div>
 
         {/* Edit profile card */}
-        <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">
+        <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
+          <h3 className="text-sm font-semibold text-slate-200 mb-4">
             Profil
           </h3>
           <InlineEdit
@@ -475,11 +462,11 @@ export default function ProfilePage() {
         {user && <StravaConnect userId={user.id} />}
 
         {/* Settings card */}
-        <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">
+        <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
+          <h3 className="text-sm font-semibold text-slate-200 mb-2">
             Installningar
           </h3>
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-slate-700">
             <PlaceholderRow icon={Bell} label="Notifikationer" />
             <PlaceholderRow icon={Palette} label="Tema" />
           </div>
@@ -488,13 +475,12 @@ export default function ProfilePage() {
         {/* Sign out */}
         <button
           onClick={signOut}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 py-3.5 text-sm font-semibold text-red-600 transition-colors active:bg-red-100"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-500/30 bg-rose-500/10 py-3.5 text-sm font-semibold text-rose-400 transition-colors active:bg-rose-500/20"
         >
           <LogOut size={18} />
           Logga ut
         </button>
 
-        {/* Bottom spacer */}
         <div className="h-4" />
       </div>
     </AppShell>

@@ -47,20 +47,20 @@ export default function NoGroupView({ userId, onGroupJoined }: NoGroupViewProps)
 
   return (
     <AppShell>
-      <div className="bg-white px-5 pt-12 pb-4 border-b border-gray-100">
-        <h1 className="text-xl font-bold text-gray-900">Grupp</h1>
-        <p className="text-sm text-gray-500 mt-1">
+      <div className="bg-slate-900 px-5 pt-12 pb-4 border-b border-slate-700">
+        <h1 className="text-xl font-bold text-slate-50">Grupp</h1>
+        <p className="text-sm text-slate-400 mt-1">
           Du är inte med i någon grupp ännu
         </p>
       </div>
 
       <div className="flex flex-col gap-4 px-4 py-6">
         {/* Mode switcher */}
-        <div className="flex gap-1 p-1 rounded-xl bg-gray-100">
+        <div className="flex gap-1 p-1 rounded-xl bg-slate-800">
           <button
             onClick={() => { setMode('join'); setError(null); }}
             className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition-colors ${
-              mode === 'join' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+              mode === 'join' ? 'bg-slate-700 text-slate-50 shadow-sm' : 'text-slate-400'
             }`}
           >
             <UserPlus size={14} className="inline mr-1.5 -mt-0.5" />
@@ -69,7 +69,7 @@ export default function NoGroupView({ userId, onGroupJoined }: NoGroupViewProps)
           <button
             onClick={() => { setMode('create'); setError(null); }}
             className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition-colors ${
-              mode === 'create' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+              mode === 'create' ? 'bg-slate-700 text-slate-50 shadow-sm' : 'text-slate-400'
             }`}
           >
             <Plus size={14} className="inline mr-1.5 -mt-0.5" />
@@ -78,14 +78,14 @@ export default function NoGroupView({ userId, onGroupJoined }: NoGroupViewProps)
         </div>
 
         {mode === 'join' ? (
-          <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-5">
+          <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
             <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
-                <UserPlus size={20} className="text-orange-600" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15">
+                <UserPlus size={20} className="text-emerald-400" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">Gå med i en grupp</h3>
-                <p className="text-xs text-gray-500">Ange inbjudningskoden från din vän</p>
+                <h3 className="text-sm font-semibold text-slate-50">Gå med i en grupp</h3>
+                <p className="text-xs text-slate-400">Ange inbjudningskoden från din vän</p>
               </div>
             </div>
 
@@ -95,29 +95,29 @@ export default function NoGroupView({ userId, onGroupJoined }: NoGroupViewProps)
               onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
               placeholder="T.ex. ABCD1234"
               maxLength={10}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-center text-lg tracking-widest uppercase font-mono focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 transition-all"
+              className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-center text-lg tracking-widest uppercase font-mono text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all placeholder:text-slate-500"
             />
 
-            {error && <p className="mt-3 text-xs text-red-500 text-center">{error}</p>}
+            {error && <p className="mt-3 text-xs text-rose-500 text-center">{error}</p>}
 
             <button
               onClick={handleJoin}
               disabled={!inviteCode.trim() || loading}
-              className="mt-4 w-full rounded-xl bg-orange-500 py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2"
+              className="mt-4 w-full rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
               {loading ? 'Går med...' : 'Gå med'}
             </button>
           </div>
         ) : (
-          <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-5">
+          <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
             <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
-                <Plus size={20} className="text-orange-600" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15">
+                <Plus size={20} className="text-emerald-400" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">Skapa en ny grupp</h3>
-                <p className="text-xs text-gray-500">Bjud sedan in dina vänner med en kod</p>
+                <h3 className="text-sm font-semibold text-slate-50">Skapa en ny grupp</h3>
+                <p className="text-xs text-slate-400">Bjud sedan in dina vänner med en kod</p>
               </div>
             </div>
 
@@ -127,15 +127,15 @@ export default function NoGroupView({ userId, onGroupJoined }: NoGroupViewProps)
               onChange={(e) => setGroupName(e.target.value)}
               placeholder="Gruppnamn"
               maxLength={40}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 transition-all"
+              className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all placeholder:text-slate-500"
             />
 
-            {error && <p className="mt-3 text-xs text-red-500 text-center">{error}</p>}
+            {error && <p className="mt-3 text-xs text-rose-500 text-center">{error}</p>}
 
             <button
               onClick={handleCreate}
               disabled={!groupName.trim() || loading}
-              className="mt-4 w-full rounded-xl bg-orange-500 py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2"
+              className="mt-4 w-full rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
               {loading ? 'Skapar...' : 'Skapa grupp'}

@@ -25,10 +25,10 @@ export default function BossBattleTab({ encounter, attacks, history, members }: 
 
   if (!encounter) {
     return (
-      <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-8 text-center">
+      <div className="rounded-2xl bg-slate-900 border border-slate-700 p-8 text-center">
         <p className="text-5xl mb-3">{'\u{1F634}'}{'\u{1F409}'}</p>
-        <h3 className="text-base font-semibold text-gray-700 mb-1">Ingen aktiv boss just nu</h3>
-        <p className="text-sm text-gray-400">En ny boss dyker upp i början av nästa vecka!</p>
+        <h3 className="text-base font-semibold text-slate-200 mb-1">Ingen aktiv boss just nu</h3>
+        <p className="text-sm text-slate-400">En ny boss dyker upp i början av nästa vecka!</p>
       </div>
     );
   }
@@ -185,27 +185,27 @@ export default function BossBattleTab({ encounter, attacks, history, members }: 
 
       {/* Attack Leaderboard */}
       {attackLeaderboard.length > 0 && (
-        <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
-            <Swords size={16} className="text-orange-500" />
-            <h3 className="text-sm font-semibold text-gray-700">Skada denna vecka</h3>
+        <div className="rounded-2xl bg-slate-900 border border-slate-700 overflow-hidden">
+          <div className="px-5 py-3 border-b border-slate-700 flex items-center gap-2">
+            <Swords size={16} className="text-rose-500" />
+            <h3 className="text-sm font-semibold text-slate-200">Skada denna vecka</h3>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-slate-800">
             {attackLeaderboard.map((entry, index) => (
               <div key={entry.userId} className="flex items-center gap-3 px-5 py-3">
-                <span className="w-8 text-center text-sm font-bold">{getMedalEmoji(index)}</span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-300 text-sm font-bold text-white">
+                <span className="w-8 text-center text-sm font-bold text-slate-200">{getMedalEmoji(index)}</span>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-600 text-sm font-bold text-white">
                   {entry.displayName.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{entry.displayName}</p>
-                  <p className="text-[11px] text-gray-400">
+                  <p className="text-sm font-medium text-slate-200 truncate">{entry.displayName}</p>
+                  <p className="text-[11px] text-slate-400">
                     {entry.attacks} attacker{entry.crits > 0 && (
-                      <span className="text-amber-600 font-semibold"> &middot; {entry.crits} krit</span>
+                      <span className="text-amber-400 font-semibold"> &middot; {entry.crits} krit</span>
                     )}
                   </p>
                 </div>
-                <span className="text-sm font-bold text-orange-600">{entry.damage} dmg</span>
+                <span className="text-sm font-bold text-rose-500">{entry.damage} dmg</span>
               </div>
             ))}
           </div>
@@ -214,12 +214,12 @@ export default function BossBattleTab({ encounter, attacks, history, members }: 
 
       {/* Attack Timeline */}
       {recentAttacks.length > 0 && (
-        <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
-            <Zap size={16} className="text-amber-500" />
-            <h3 className="text-sm font-semibold text-gray-700">Raid-logg</h3>
+        <div className="rounded-2xl bg-slate-900 border border-slate-700 overflow-hidden">
+          <div className="px-5 py-3 border-b border-slate-700 flex items-center gap-2">
+            <Zap size={16} className="text-amber-400" />
+            <h3 className="text-sm font-semibold text-slate-200">Raid-logg</h3>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-slate-800">
             {recentAttacks.map((atk) => {
               const member = members.find((m) => m.id === atk.user_id);
               const sportIcon = SPORT_CONFIG[atk.sport_type]?.icon || '\u{2B50}';
@@ -230,16 +230,16 @@ export default function BossBattleTab({ encounter, attacks, history, members }: 
                 <div key={atk.id} className="flex items-center gap-3 px-5 py-2.5">
                   <span className="text-lg">{sportIcon}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-800">
+                    <p className="text-sm text-slate-200">
                       <span className="font-medium">{member?.display_name || 'Okänd'}</span>
                       {' '}&mdash; {atk.damage} dmg
                       {atk.is_critical && (
-                        <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                        <span className="ml-1.5 inline-flex items-center rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[10px] font-bold text-violet-400">
                           KRIT!
                         </span>
                       )}
                     </p>
-                    <p className="text-[11px] text-gray-400">{timeStr}</p>
+                    <p className="text-[11px] text-slate-400">{timeStr}</p>
                   </div>
                 </div>
               );
@@ -250,16 +250,16 @@ export default function BossBattleTab({ encounter, attacks, history, members }: 
 
       {/* Boss History */}
       {history.length > 0 && (
-        <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+        <div className="rounded-2xl bg-slate-900 border border-slate-700 overflow-hidden">
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="w-full px-5 py-3 flex items-center justify-between text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            className="w-full px-5 py-3 flex items-center justify-between text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors"
           >
             <span>Boss-historik ({history.length})</span>
-            <span className="text-gray-400">{showHistory ? '\u25B2' : '\u25BC'}</span>
+            <span className="text-slate-400">{showHistory ? '\u25B2' : '\u25BC'}</span>
           </button>
           {showHistory && (
-            <div className="divide-y divide-gray-50 border-t border-gray-100">
+            <div className="divide-y divide-slate-800 border-t border-slate-700">
               {history.map((enc) => {
                 const weekStart = new Date(enc.week_start).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
                 const weekEndStr = new Date(enc.week_end).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
@@ -267,13 +267,13 @@ export default function BossBattleTab({ encounter, attacks, history, members }: 
                   <div key={enc.id} className="flex items-center gap-3 px-5 py-3">
                     <span className="text-2xl">{enc.boss.emoji}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{enc.boss.name}</p>
-                      <p className="text-[11px] text-gray-400">{weekStart} &ndash; {weekEndStr}</p>
+                      <p className="text-sm font-medium text-slate-200 truncate">{enc.boss.name}</p>
+                      <p className="text-[11px] text-slate-400">{weekStart} &ndash; {weekEndStr}</p>
                     </div>
                     {enc.status === 'defeated' ? (
-                      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-semibold text-green-700">Besegrad</span>
+                      <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400">Besegrad</span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-semibold text-red-700">Misslyckad</span>
+                      <span className="inline-flex items-center rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-rose-400">Misslyckad</span>
                     )}
                   </div>
                 );

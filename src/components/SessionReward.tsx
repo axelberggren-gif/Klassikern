@@ -143,10 +143,10 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
       )}
 
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
         onClick={() => { cleanup(); onDone(); }}
       >
-        <div className={`animate-slide-up flex flex-col items-center gap-4 rounded-3xl bg-white p-8 shadow-2xl mx-8 relative overflow-hidden${showScreenShake ? ' animate-screen-shake' : ''}`}>
+        <div className={`animate-slide-up flex flex-col items-center gap-4 rounded-3xl bg-slate-900 border border-slate-700 p-8 shadow-2xl mx-8 relative overflow-hidden${showScreenShake ? ' animate-screen-shake' : ''}`}>
           {/* Confetti dots — visible in phase 1 */}
           {phase === 1 && (
             <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
@@ -163,7 +163,7 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
                   <div
                     className="h-2 w-2 rounded-full"
                     style={{
-                      backgroundColor: ['#F97316', '#3B82F6', '#22C55E', '#EAB308', '#8B5CF6'][
+                      backgroundColor: ['#10B981', '#3B82F6', '#22C55E', '#FBBF24', '#8B5CF6'][
                         Math.floor(Math.random() * 5)
                       ],
                     }}
@@ -179,20 +179,20 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
               <div className="text-5xl">{sport.icon}</div>
 
               <div className="animate-ep-counter text-center">
-                <p className="text-4xl font-black text-orange-500">+{session.ep_earned} EP</p>
+                <p className="text-4xl font-black text-emerald-400">+{session.ep_earned} EP</p>
               </div>
 
-              <p className="text-lg font-semibold text-gray-800">
+              <p className="text-lg font-semibold text-slate-50">
                 {session.is_bonus ? 'Bonuspass!' : 'Pass klart!'}
               </p>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-slate-400">
                 {session.duration_minutes} min {sport.label.toLowerCase()}
               </p>
 
               {!session.is_bonus && (
-                <div className="flex items-center gap-2 rounded-full bg-green-50 px-4 py-2">
-                  <span className="text-green-500">&#10003;</span>
-                  <span className="text-sm font-medium text-green-700">On track!</span>
+                <div className="flex items-center gap-2 rounded-full bg-emerald-500/15 px-4 py-2">
+                  <span className="text-emerald-400">&#10003;</span>
+                  <span className="text-sm font-medium text-emerald-400">On track!</span>
                 </div>
               )}
             </>
@@ -233,22 +233,22 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
                 )}
               </div>
 
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+              <p className="text-sm font-semibold text-slate-400 uppercase tracking-wide">
                 {bossDamage.bossName}
               </p>
 
               {/* Damage number */}
               <div className="animate-damage-pop text-center">
-                <p className="text-5xl font-black text-red-500">
+                <p className="text-5xl font-black text-rose-500">
                   -{displayedDamage}
                 </p>
-                <p className="text-xs font-medium text-red-400 mt-1">HP skada</p>
+                <p className="text-xs font-medium text-rose-400 mt-1">HP skada</p>
               </div>
 
               {/* Critical hit label */}
               {bossDamage.isCritical && displayedDamage >= bossDamage.damage && (
-                <div className="animate-damage-pop rounded-full bg-yellow-100 border border-yellow-300 px-4 py-1">
-                  <span className="text-sm font-black text-yellow-600 uppercase tracking-wider">
+                <div className="animate-damage-pop rounded-full bg-violet-500/15 border border-violet-500/30 px-4 py-1">
+                  <span className="text-sm font-black text-violet-400 uppercase tracking-wider">
                     Kritisk tr&auml;ff!
                   </span>
                 </div>
@@ -256,11 +256,11 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
 
               {/* HP Bar */}
               <div className="w-full max-w-[220px] mt-2">
-                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                <div className="flex justify-between text-xs text-slate-400 mb-1">
                   <span>HP</span>
                   <span>{Math.max(0, bossDamage.remainingHP)} / {bossDamage.maxHP}</span>
                 </div>
-                <div className="h-3 w-full rounded-full bg-gray-200 overflow-hidden">
+                <div className="h-3 w-full rounded-full bg-slate-700 overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-1000 ease-out"
                     style={{
@@ -282,10 +282,10 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
               </div>
 
               <div className="text-center">
-                <p className="text-3xl font-black text-orange-500">
+                <p className="text-3xl font-black text-emerald-400">
                   Boss besegrad!
                 </p>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-slate-400 mt-1">
                   {bossDamage.bossName} &auml;r nedlagd!
                 </p>
               </div>
@@ -305,7 +305,7 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
                     <div
                       className="h-3 w-3 rounded-full"
                       style={{
-                        backgroundColor: ['#F97316', '#EAB308', '#F59E0B', '#FBBF24', '#FCD34D'][
+                        backgroundColor: ['#10B981', '#34D399', '#059669', '#FBBF24', '#8B5CF6'][
                           Math.floor(Math.random() * 5)
                         ],
                       }}
@@ -314,17 +314,17 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
                 ))}
               </div>
 
-              <div className="flex items-center gap-2 rounded-full bg-orange-50 border border-orange-200 px-4 py-2">
-                <span className="text-orange-500 text-lg">&#9733;</span>
-                <span className="text-sm font-bold text-orange-600">Seger!</span>
-                <span className="text-orange-500 text-lg">&#9733;</span>
+              <div className="flex items-center gap-2 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-4 py-2">
+                <span className="text-emerald-400 text-lg">&#9733;</span>
+                <span className="text-sm font-bold text-emerald-400">Seger!</span>
+                <span className="text-emerald-400 text-lg">&#9733;</span>
               </div>
             </div>
           )}
 
           <button
             onClick={() => { cleanup(); onDone(); }}
-            className="mt-2 text-sm font-medium text-gray-400"
+            className="mt-2 text-sm font-medium text-slate-400"
           >
             Tryck f&ouml;r att st&auml;nga
           </button>

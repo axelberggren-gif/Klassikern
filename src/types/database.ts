@@ -1,12 +1,6 @@
 // ============================================================================
 // Supabase Database Types
 // ============================================================================
-// Generated-style types matching the Supabase schema defined in
-// supabase/migrations/001_initial_schema.sql
-//
-// These follow the standard Supabase pattern so the typed client works
-// with .from('table_name') calls.
-// ============================================================================
 
 // ---------------------------------------------------------------------------
 // Enum types (matching Postgres custom types)
@@ -632,8 +626,6 @@ export interface Database {
 // ---------------------------------------------------------------------------
 // Convenience type aliases (Row types for common use)
 // ---------------------------------------------------------------------------
-// These match the existing interface names used throughout the app,
-// ensuring backward compatibility.
 
 export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type Group = Database['public']['Tables']['groups']['Row'];
@@ -652,10 +644,7 @@ export type BossEncounter = Database['public']['Tables']['boss_encounters']['Row
 export type BossAttack = Database['public']['Tables']['boss_attacks']['Row'];
 export type BossTrophy = Database['public']['Tables']['boss_trophies']['Row'];
 
-// Backward-compatible alias: the old code uses "User" instead of "Profile".
-// The mock-data / localStorage layer also uses group_id on users, even though
-// the database models this as a many-to-many via group_members. We keep the
-// field here so the existing MVP code compiles without changes.
+// Backward-compatible alias
 export type User = Profile & {
   group_id: string | null;
 };
@@ -720,3 +709,7 @@ export type GroupDetails = {
   created_by: string | null;
   members: GroupMemberWithProfile[];
 };
+
+export interface BossAttackWithUser extends BossAttack {
+  user: Profile;
+}

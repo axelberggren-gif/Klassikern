@@ -15,14 +15,14 @@ function getFeedText(item: ActivityFeedItemWithUser): string {
   switch (item.event_type) {
     case 'session_logged': {
       const sport = SPORT_CONFIG[data.sport_type as keyof typeof SPORT_CONFIG];
-      return `slutförde ${sport?.label.toLowerCase() || 'ett pass'} (${data.duration} min) · +${data.ep} EP`;
+      return `slutforde ${sport?.label.toLowerCase() || 'ett pass'} (${data.duration} min) · +${data.ep} EP`;
     }
     case 'streak_milestone':
-      return `nådde ${data.streak} dagars streak! 🔥`;
+      return `nadde ${data.streak} dagars streak! 🔥`;
     case 'badge_earned':
-      return `låste upp "${data.badge_name}"! 🏅`;
+      return `laste upp "${data.badge_name}"! 🏅`;
     case 'waypoint_reached':
-      return `nådde ${data.waypoint_name} på kartan! 📍`;
+      return `nadde ${data.waypoint_name} pa kartan! 📍`;
     case 'challenge_completed':
       return `klarade veckoutmaningen! 🎯`;
     case 'boss_attacked': {
@@ -41,7 +41,7 @@ function getFeedText(item: ActivityFeedItemWithUser): string {
     case 'boss_failed':
       return `${data.boss_emoji || '💀'} Bossen överlevde veckan... Debuff nästa vecka!`;
     default:
-      return 'gjorde något fantastiskt!';
+      return 'gjorde nagot fantastiskt!';
   }
 }
 
@@ -67,43 +67,46 @@ export default function ActivityFeed({ items, maxItems = 5 }: ActivityFeedProps)
 
   if (displayItems.length === 0) {
     return (
-      <div className="rounded-2xl bg-white border border-gray-200 p-5 text-center shadow-sm">
-        <p className="text-sm text-gray-400">Ingen aktivitet ännu. Logga ditt första pass!</p>
+      <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5 text-center">
+        <p className="text-sm text-slate-400">Ingen aktivitet annu. Logga ditt forsta pass!</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+    <div className="rounded-2xl bg-slate-900 border border-slate-700 overflow-hidden">
       <div className="px-5 pt-4 pb-2">
-        <h3 className="text-sm font-semibold text-gray-700">Gruppaktivitet</h3>
+        <h3 className="text-sm font-semibold text-slate-200">Gruppaktivitet</h3>
       </div>
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-slate-800">
         {displayItems.map((item) => {
           const data = item.event_data as Record<string, unknown>;
           const isLastStand = item.event_type === 'boss_attacked' && data.is_last_stand;
           const isBossDefeated = item.event_type === 'boss_defeated';
+          const isBossEvent = item.event_type.startsWith('boss_');
           const rowClass = isLastStand
-            ? 'flex items-start gap-3 px-5 py-3 bg-gradient-to-r from-red-50 to-orange-50'
+            ? 'flex items-start gap-3 px-5 py-3 bg-rose-500/10'
             : isBossDefeated
-              ? 'flex items-start gap-3 px-5 py-3 bg-gradient-to-r from-amber-50 to-yellow-50'
-              : 'flex items-start gap-3 px-5 py-3';
+              ? 'flex items-start gap-3 px-5 py-3 bg-amber-400/10'
+              : isBossEvent
+                ? 'flex items-start gap-3 px-5 py-3 bg-slate-800/50'
+                : 'flex items-start gap-3 px-5 py-3';
           return (
           <div key={item.id} className={rowClass}>
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-slate-800 text-sm">
               {getFeedIcon(item)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-gray-700">
-                <span className="font-semibold">{item.user?.display_name || 'Okänd'}</span>{' '}
+              <p className="text-sm text-slate-200">
+                <span className="font-semibold">{item.user?.display_name || 'Okand'}</span>{' '}
                 {getFeedText(item)}
               </p>
               {item.event_type === 'session_logged' && Boolean((item.event_data as Record<string, unknown>).note) && (
-                <p className="mt-0.5 text-xs text-gray-400 italic truncate">
+                <p className="mt-0.5 text-xs text-slate-400 italic truncate">
                   &quot;{String((item.event_data as Record<string, unknown>).note)}&quot;
                 </p>
               )}
-              <p className="mt-0.5 text-xs text-gray-400">
+              <p className="mt-0.5 text-xs text-slate-400">
                 {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: sv })}
               </p>
             </div>

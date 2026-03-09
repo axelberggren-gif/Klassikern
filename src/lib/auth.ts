@@ -24,7 +24,7 @@ export interface AuthState {
  * React hook that provides the current auth state.
  *
  * Architecture:
- *  - Effect 1: getSession() for initial check + onAuthStateChange for updates
+ *  - Effect 1: getUser() for initial check + onAuthStateChange for updates
  *  - Effect 2: when user changes, fetch profile in a separate async context
  *
  * This split avoids a deadlock in @supabase/ssr where both getSession()
@@ -124,8 +124,6 @@ export function useAuth(): AuthState {
         if (cancelled) return;
 
         if (error || !data) {
-          // Don't sign out or redirect — this would cause an infinite loop.
-          // Profile might fail due to RLS or transient errors.
           console.error('[useAuth] profile fetch failed:', error?.message ?? 'no data');
           setProfile(null);
           setLoading(false);

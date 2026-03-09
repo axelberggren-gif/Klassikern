@@ -42,7 +42,6 @@ export default function LogSessionPage() {
     }
   }, []);
 
-  // Fetch group ID once user is available
   useEffect(() => {
     if (!user) return;
     getUserGroupId(user.id).then(setGroupId);
@@ -68,7 +67,6 @@ export default function LogSessionPage() {
     if (result) {
       setReward(result.session);
 
-      // If new badges were earned, load their definitions for display
       if (result.newBadges.length > 0) {
         const allBadgeDefs = await getAllBadges();
         const earned = allBadgeDefs.filter((b) =>
@@ -79,7 +77,6 @@ export default function LogSessionPage() {
     }
   }
 
-  // Show badge modals one at a time after the session reward is dismissed
   function handleRewardDone() {
     setReward(null);
     if (pendingBadges.length > 0) {
@@ -100,16 +97,15 @@ export default function LogSessionPage() {
     }
   }
 
-  // Compute streak bonus for EP preview
   const currentStreak = profile?.current_streak ?? 0;
   const streakMultiplier =
     currentStreak >= 7 ? 1.3 : currentStreak >= 5 ? 1.2 : currentStreak >= 3 ? 1.1 : 1;
 
   if (loading) return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-3 border-orange-500 border-t-transparent" />
-          <p className="text-sm text-gray-400">Laddar...</p>
+          <div className="h-8 w-8 animate-spin rounded-full border-3 border-emerald-500 border-t-transparent" />
+          <p className="text-sm text-slate-400">Laddar...</p>
         </div>
       </div>
     );
@@ -131,15 +127,15 @@ export default function LogSessionPage() {
       )}
 
       {/* Header */}
-      <div className="bg-white px-5 pt-12 pb-4 border-b border-gray-100">
+      <div className="bg-slate-900 px-5 pt-12 pb-4 border-b border-slate-700">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="text-gray-400">
+          <button onClick={() => router.back()} className="text-slate-400">
             <ArrowLeft size={24} />
           </button>
-          <h1 className="text-xl font-bold text-gray-900">Logga pass</h1>
+          <h1 className="text-xl font-bold text-slate-50">Logga pass</h1>
         </div>
         {todayPlanned && (
-          <p className="mt-2 text-sm text-gray-500">
+          <p className="mt-2 text-sm text-slate-400">
             Planerat idag: {todayPlanned.title}
             {todayPlanned.suggested_duration_minutes && ` · ${todayPlanned.suggested_duration_minutes} min`}
           </p>
@@ -149,7 +145,7 @@ export default function LogSessionPage() {
       <div className="flex flex-col gap-6 px-5 py-6">
         {/* Sport type selector */}
         <div>
-          <label className="mb-2 block text-sm font-semibold text-gray-700">Typ av pass</label>
+          <label className="mb-2 block text-sm font-semibold text-slate-200">Typ av pass</label>
           <div className="grid grid-cols-5 gap-2">
             {ACTIVE_SPORT_TYPES.map((type) => {
               const config = SPORT_CONFIG[type];
@@ -160,13 +156,13 @@ export default function LogSessionPage() {
                   onClick={() => setSportType(type)}
                   className={`flex flex-col items-center gap-1 rounded-xl p-3 transition-all ${
                     isSelected
-                      ? `${config.bgColor} ring-2 ring-offset-1`
-                      : 'bg-gray-50 hover:bg-gray-100'
+                      ? 'bg-slate-800 ring-2 ring-offset-1 ring-offset-slate-950'
+                      : 'bg-slate-900 hover:bg-slate-800'
                   }`}
                   style={isSelected ? { '--tw-ring-color': config.color } as React.CSSProperties : undefined}
                 >
                   <span className="text-xl">{config.icon}</span>
-                  <span className={`text-[10px] font-medium ${isSelected ? config.textColor : 'text-gray-500'}`}>
+                  <span className={`text-[10px] font-medium ${isSelected ? 'text-slate-50' : 'text-slate-400'}`}>
                     {config.label}
                   </span>
                 </button>
@@ -177,11 +173,11 @@ export default function LogSessionPage() {
 
         {/* Duration */}
         <div>
-          <label className="mb-2 block text-sm font-semibold text-gray-700">Tid (minuter)</label>
+          <label className="mb-2 block text-sm font-semibold text-slate-200">Tid (minuter)</label>
           <div className="flex items-center justify-center gap-4">
             <button
               onClick={() => setDuration(Math.max(5, duration - 5))}
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-600 active:bg-gray-200"
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-slate-200 active:bg-slate-700"
             >
               <Minus size={20} />
             </button>
@@ -190,18 +186,17 @@ export default function LogSessionPage() {
                 type="number"
                 value={duration}
                 onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value) || 0))}
-                className="w-full text-center text-4xl font-bold text-gray-900 bg-transparent outline-none"
+                className="w-full text-center text-4xl font-bold text-slate-50 bg-transparent outline-none"
               />
-              <span className="text-xs text-gray-400">min</span>
+              <span className="text-xs text-slate-400">min</span>
             </div>
             <button
               onClick={() => setDuration(duration + 5)}
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-600 active:bg-gray-200"
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-slate-200 active:bg-slate-700"
             >
               <Plus size={20} />
             </button>
           </div>
-          {/* Quick duration buttons */}
           <div className="mt-3 flex justify-center gap-2">
             {[30, 45, 60, 90].map((d) => (
               <button
@@ -209,8 +204,8 @@ export default function LogSessionPage() {
                 onClick={() => setDuration(d)}
                 className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
                   duration === d
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-gray-100 text-gray-600'
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-slate-800 text-slate-300'
                 }`}
               >
                 {d}
@@ -222,9 +217,9 @@ export default function LogSessionPage() {
         {/* Distance (optional) */}
         {(sportType === 'cycling' || sportType === 'running' || sportType === 'swimming') && (
           <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">
+            <label className="mb-2 block text-sm font-semibold text-slate-200">
               Distans ({sportType === 'swimming' ? 'meter' : 'km'})
-              <span className="text-gray-400 font-normal"> (valfritt)</span>
+              <span className="text-slate-400 font-normal"> (valfritt)</span>
             </label>
             <input
               type="number"
@@ -232,14 +227,14 @@ export default function LogSessionPage() {
               value={distance}
               onChange={(e) => setDistance(e.target.value)}
               placeholder={sportType === 'swimming' ? 'T.ex. 1000' : 'T.ex. 15'}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-slate-50 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500"
             />
           </div>
         )}
 
         {/* Effort rating */}
         <div>
-          <label className="mb-2 block text-sm font-semibold text-gray-700">Hur kände det?</label>
+          <label className="mb-2 block text-sm font-semibold text-slate-200">Hur kande det?</label>
           <div className="flex justify-between gap-1">
             {([1, 2, 3, 4, 5] as EffortRating[]).map((level) => {
               const config = EFFORT_LABELS[level];
@@ -250,12 +245,12 @@ export default function LogSessionPage() {
                   onClick={() => setEffort(level)}
                   className={`flex flex-1 flex-col items-center gap-1 rounded-xl p-3 transition-all ${
                     isSelected
-                      ? 'bg-orange-50 ring-2 ring-orange-400'
-                      : 'bg-gray-50'
+                      ? 'bg-emerald-500/15 ring-2 ring-emerald-400'
+                      : 'bg-slate-900'
                   }`}
                 >
                   <span className="text-2xl">{config.emoji}</span>
-                  <span className={`text-[10px] font-medium ${isSelected ? 'text-orange-600' : 'text-gray-400'}`}>
+                  <span className={`text-[10px] font-medium ${isSelected ? 'text-emerald-400' : 'text-slate-400'}`}>
                     {config.label}
                   </span>
                 </button>
@@ -266,22 +261,22 @@ export default function LogSessionPage() {
 
         {/* Note */}
         <div>
-          <label className="mb-2 block text-sm font-semibold text-gray-700">
-            Anteckning <span className="text-gray-400 font-normal">(valfritt)</span>
+          <label className="mb-2 block text-sm font-semibold text-slate-200">
+            Anteckning <span className="text-slate-400 font-normal">(valfritt)</span>
           </label>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Hur gick det? Något speciellt?"
+            placeholder="Hur gick det? Nagot speciellt?"
             rows={2}
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 resize-none"
+            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-slate-50 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 resize-none placeholder:text-slate-500"
           />
         </div>
 
         {/* EP preview */}
-        <div className="rounded-xl bg-orange-50 border border-orange-100 p-4 text-center">
-          <p className="text-sm text-orange-600 font-medium">
-            Du tjänar ca <span className="text-lg font-bold">
+        <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-center">
+          <p className="text-sm text-emerald-400 font-medium">
+            Du tjanar ca <span className="text-lg font-bold">
               {Math.round(
                 (sportType === 'swimming' ? 12 : sportType === 'hiit' ? 8 : 10) *
                   (duration / 30) *
@@ -296,7 +291,7 @@ export default function LogSessionPage() {
         <button
           onClick={handleSubmit}
           disabled={submitting}
-          className="w-full rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 py-4 text-lg font-bold text-white shadow-lg transition-transform active:scale-[0.97] disabled:opacity-60"
+          className="w-full rounded-2xl bg-emerald-500 py-4 text-lg font-bold text-white shadow-lg transition-transform active:scale-[0.97] disabled:opacity-60"
         >
           {submitting ? 'Sparar...' : 'Logga pass ✓'}
         </button>

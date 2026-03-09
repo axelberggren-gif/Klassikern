@@ -107,52 +107,48 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
 
   if (loading) {
     return (
-      <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
+      <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
         <div className="animate-pulse flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gray-100" />
-          <div className="h-4 w-32 rounded bg-gray-100" />
+          <div className="h-10 w-10 rounded-xl bg-slate-800" />
+          <div className="h-4 w-32 rounded bg-slate-800" />
         </div>
       </div>
     );
   }
 
-  // -----------------------------------------------------------------------
-  // Connected state
-  // -----------------------------------------------------------------------
   if (connection) {
     const displayName =
       connection.athlete_name || `Atlet-ID: ${connection.strava_athlete_id}`;
 
     return (
-      <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
+      <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <StravaLogo />
-            <h3 className="text-sm font-semibold text-gray-700">
+            <h3 className="text-sm font-semibold text-slate-200">
               Strava kopplad
             </h3>
-            <CheckCircle size={16} className="text-green-500" />
+            <CheckCircle size={16} className="text-emerald-400" />
           </div>
         </div>
 
         {/* Athlete name + last synced */}
         <div className="mb-4">
-          <p className="text-xs text-gray-500">{displayName}</p>
+          <p className="text-xs text-slate-400">{displayName}</p>
           {connection.last_synced_at && (
-            <p className="text-[11px] text-gray-400 mt-0.5">
+            <p className="text-[11px] text-slate-500 mt-0.5">
               Senast synkad: {formatRelativeTime(connection.last_synced_at)}
             </p>
           )}
         </div>
 
-        {/* Sync button */}
         <button
           onClick={handleSync}
           disabled={syncing}
           className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors"
           style={{
-            backgroundColor: syncing ? '#e5e7eb' : '#FC4C02',
-            color: syncing ? '#9ca3af' : '#ffffff',
+            backgroundColor: syncing ? '#1a2236' : '#FC4C02',
+            color: syncing ? '#8b95a8' : '#ffffff',
           }}
         >
           <RefreshCw
@@ -164,9 +160,9 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
 
         {/* Rich sync result */}
         {syncResult && (
-          <div className="mt-3 rounded-xl bg-gray-50 border border-gray-100 p-3">
+          <div className="mt-3 rounded-xl bg-slate-800 border border-slate-700 p-3">
             {syncResult.imported === 0 ? (
-              <p className="text-xs text-center text-gray-500">
+              <p className="text-xs text-center text-slate-400">
                 {syncResult.message}
               </p>
             ) : (
@@ -174,7 +170,7 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
                 {/* Summary line */}
                 <div className="flex items-center justify-center gap-1.5 mb-2">
                   <Zap size={14} className="text-orange-500" />
-                  <p className="text-xs font-semibold text-gray-700">
+                  <p className="text-xs font-semibold text-slate-200">
                     {syncResult.imported} pass importerade — {syncResult.total_ep_earned} EP
                   </p>
                 </div>
@@ -209,11 +205,10 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
           <p className="text-xs text-center text-red-500 mt-2">{syncError}</p>
         )}
 
-        {/* Disconnect link */}
         <button
           onClick={handleDisconnect}
           disabled={disconnecting}
-          className="flex w-full items-center justify-center gap-1.5 mt-3 py-2 text-xs text-gray-400 hover:text-red-500 transition-colors"
+          className="flex w-full items-center justify-center gap-1.5 mt-3 py-2 text-xs text-slate-400 hover:text-rose-400 transition-colors"
         >
           <Unlink size={12} />
           {disconnecting ? 'Kopplar fran...' : 'Koppla fran'}
@@ -222,19 +217,16 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
     );
   }
 
-  // -----------------------------------------------------------------------
-  // Not connected state
-  // -----------------------------------------------------------------------
   return (
-    <div className="rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
+    <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
       <div className="flex items-center gap-2 mb-2">
         <StravaLogo />
-        <h3 className="text-sm font-semibold text-gray-700">
+        <h3 className="text-sm font-semibold text-slate-200">
           Koppla Strava
         </h3>
       </div>
 
-      <p className="text-xs text-gray-400 mb-4">
+      <p className="text-xs text-slate-400 mb-4">
         Importera dina traningspass automatiskt fran Strava
       </p>
 
@@ -249,10 +241,6 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Strava logo (simple SVG inline)
-// ---------------------------------------------------------------------------
 
 function StravaLogo() {
   return (
