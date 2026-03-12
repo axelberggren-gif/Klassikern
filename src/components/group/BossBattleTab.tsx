@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Swords, Zap, Clock } from 'lucide-react';
 import { isLastStandWindow } from '@/lib/boss-engine';
 import { SPORT_CONFIG } from '@/lib/sport-config';
@@ -181,6 +182,15 @@ export default function BossBattleTab({ encounter, attacks, history, members }: 
             )}
           </div>
         )}
+
+        {/* Attackera button */}
+        <Link
+          href="/log"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 py-3 text-base font-bold text-white shadow-lg transition-transform active:scale-[0.97]"
+        >
+          <Swords size={18} />
+          Attackera — logga ett pass!
+        </Link>
       </div>
 
       {/* Attack Leaderboard */}
