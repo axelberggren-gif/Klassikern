@@ -8,7 +8,7 @@ import SessionReward from '@/components/SessionReward';
 import BadgeUnlockModal from '@/components/BadgeUnlockModal';
 import { SPORT_CONFIG, EFFORT_LABELS, ACTIVE_SPORT_TYPES } from '@/lib/sport-config';
 import { useAuth } from '@/lib/auth';
-import { logSession, getUserGroupId, getAllBadges } from '@/lib/store';
+import { logSession, getUserGroupId, getAllBadges, attackBoss } from '@/lib/store';
 import { getPlanForWeek } from '@/lib/training-plan';
 import { getCurrentWeekNumber } from '@/lib/date-utils';
 import type { SportType, EffortRating, Session, Badge, PlannedSession } from '@/types/database';
@@ -27,6 +27,15 @@ export default function LogSessionPage() {
   const [currentBadge, setCurrentBadge] = useState<Badge | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
+  const [bossDamage, setBossDamage] = useState<{
+    damage: number;
+    isCritical: boolean;
+    bossEmoji: string;
+    bossName: string;
+    isKillingBlow: boolean;
+    remainingHP: number;
+    maxHP: number;
+  } | null>(null);
 
   useEffect(() => {
     const wk = getCurrentWeekNumber();
@@ -67,6 +76,20 @@ export default function LogSessionPage() {
     setSubmitting(false);
     if (result) {
       setReward(result.session);
+
+      // Attack the boss if the user is in a group
+      if (groupId) {
+        const bossResult = await attackBoss({
+          userId: user.id,
+          groupId,
+          sessionId: result.session.id,
+          sportType,
+          epEarned: result.session.ep_earned,
+        });
+        if (bossResult) {
+          setBossDamage(bossResult);
+        }
+      }
 
       // If new badges were earned, load their definitions for display
       if (result.newBadges.length > 0) {
@@ -119,6 +142,7 @@ export default function LogSessionPage() {
       {reward && (
         <SessionReward
           session={reward}
+          bossDamage={bossDamage}
           onDone={handleRewardDone}
         />
       )}
