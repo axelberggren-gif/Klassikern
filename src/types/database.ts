@@ -540,8 +540,10 @@ export interface Database {
           user_id: string;
           encounter_id: string;
           boss_id: number;
+          damage_dealt: number;
           bonus_ep: number;
           is_killing_blow: boolean;
+          week_number: number;
           created_at: string;
         };
         Insert: {
@@ -549,8 +551,10 @@ export interface Database {
           user_id: string;
           encounter_id: string;
           boss_id: number;
+          damage_dealt?: number;
           bonus_ep?: number;
           is_killing_blow?: boolean;
+          week_number?: number;
           created_at?: string;
         };
         Update: {
@@ -558,8 +562,10 @@ export interface Database {
           user_id?: string;
           encounter_id?: string;
           boss_id?: number;
+          damage_dealt?: number;
           bonus_ep?: number;
           is_killing_blow?: boolean;
+          week_number?: number;
         };
         Relationships: [];
       };
