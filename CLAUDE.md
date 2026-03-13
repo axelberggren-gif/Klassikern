@@ -112,6 +112,7 @@ export default function MyPage() {
 - Middleware at `src/middleware.ts` handles session refresh and redirects unauthenticated users to `/login`
 - Protected routes: everything except `/login`
 - **No self-registration** — users are created manually in Supabase dashboard: Authentication → Users → Add user
+- **IMPORTANT**: The `useAuth` hook must use `getUser()` (server call) instead of `getSession()` (cookie-only) for the initial auth check. Using `getSession()` causes "stuck on loading" on Vercel preview deployments because Vercel Deployment Protection, the @serwist/next service worker, and Supabase's `navigator.locks` interfere with cookie-based session reads. This is a recurring issue — do NOT switch back to `getSession()`.
 
 ### Data Layer (src/lib/store/)
 All data goes through async functions in `store/`. Import from `@/lib/store` (the index re-exports everything). Never use localStorage.
@@ -202,3 +203,4 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 - When adding new Supabase query functions, add them to the appropriate file in `src/lib/store/` and re-export from `store/index.ts`
 - When adding new types, add them to `src/types/database.ts`
 - The `User` type is a legacy alias for `Profile & { group_id }` — prefer using `Profile` directly
+- When adding Supabase Edge Functions (Deno), add the functions directory to `tsconfig.json` `exclude` to prevent Deno imports from breaking the Next.js build

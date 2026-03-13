@@ -403,7 +403,7 @@ export default function ProfilePage() {
                         )}
                         {trophy.is_killing_blow && (
                           <span className="text-[9px] font-bold text-orange-600">
-                            Dödsstöt
+                            ⚔️ Dödsstöt
                           </span>
                         )}
                       </div>
