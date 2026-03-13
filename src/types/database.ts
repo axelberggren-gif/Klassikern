@@ -423,47 +423,6 @@ export interface Database {
         };
         Relationships: [];
       };
-      strava_connections: {
-        Row: {
-          id: string;
-          user_id: string;
-          strava_athlete_id: number;
-          access_token: string;
-          refresh_token: string;
-          token_expires_at: string;
-          scope: string | null;
-          athlete_name: string | null;
-          last_synced_at: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          strava_athlete_id: number;
-          access_token: string;
-          refresh_token: string;
-          token_expires_at: string;
-          scope?: string | null;
-          athlete_name?: string | null;
-          last_synced_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          strava_athlete_id?: number;
-          access_token?: string;
-          refresh_token?: string;
-          token_expires_at?: string;
-          scope?: string | null;
-          athlete_name?: string | null;
-          last_synced_at?: string | null;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
       boss_definitions: {
         Row: {
           id: number;
@@ -604,6 +563,47 @@ export interface Database {
         };
         Relationships: [];
       };
+      strava_connections: {
+        Row: {
+          id: string;
+          user_id: string;
+          strava_athlete_id: number;
+          access_token: string;
+          refresh_token: string;
+          token_expires_at: string;
+          scope: string | null;
+          athlete_name: string | null;
+          last_synced_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          strava_athlete_id: number;
+          access_token: string;
+          refresh_token: string;
+          token_expires_at: string;
+          scope?: string | null;
+          athlete_name?: string | null;
+          last_synced_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          strava_athlete_id?: number;
+          access_token?: string;
+          refresh_token?: string;
+          token_expires_at?: string;
+          scope?: string | null;
+          athlete_name?: string | null;
+          last_synced_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -720,3 +720,11 @@ export type GroupDetails = {
   created_by: string | null;
   members: GroupMemberWithProfile[];
 };
+
+export interface BossTrophyWithBoss extends BossTrophy {
+  boss: BossDefinition;
+}
+
+export interface BossAttackWithUser extends BossAttack {
+  user: Profile;
+}
