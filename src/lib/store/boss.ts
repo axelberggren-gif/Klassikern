@@ -6,7 +6,9 @@ import type {
   BossDefinition,
   BossEncounterWithBoss,
   BossAttack,
+  BossAttackWithUser,
   BossTrophy,
+  BossTrophyWithBoss,
 } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -91,11 +93,11 @@ export async function attackBoss(params: {
   const uniqueAttackers = await getUniqueAttackerCount(encounter.id);
 
   const damageResult = calculateBossDamage({
-    ep: params.epEarned,
+    epEarned: params.epEarned,
     sportType: params.sportType,
-    bossWeakness: encounter.boss.weakness ?? 'other',
-    bossResistance: encounter.boss.resistance ?? 'other',
-    uniqueAttackersThisWeek: uniqueAttackers,
+    boss: encounter.boss,
+    encounter,
+    todayAttackerCount: uniqueAttackers,
   });
 
   const { error: attackError } = await supabase
@@ -310,6 +312,56 @@ export async function getAllBossDefinitions(): Promise<BossDefinition[]> {
     return [];
   }
   return data;
+}
+
+export async function getEncounterAttacks(
+  encounterId: string
+): Promise<BossAttackWithUser[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('boss_attacks')
+    .select('*, profiles(*)')
+    .eq('encounter_id', encounterId)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) return [];
+  return data.map((item) => {
+    const { profiles, ...attack } = item as Record<string, unknown>;
+    return { ...attack, user: profiles } as unknown as BossAttackWithUser;
+  });
+}
+
+export async function getUserTrophies(
+  userId: string
+): Promise<BossTrophyWithBoss[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('boss_trophies')
+    .select('*, boss_definitions(*)')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error || !data) return [];
+  return data.map((item) => {
+    const { boss_definitions, ...trophy } = item as Record<string, unknown>;
+    return { ...trophy, boss: boss_definitions } as unknown as BossTrophyWithBoss;
+  });
+}
+
+export async function getGroupBossHistory(
+  groupId: string
+): Promise<BossEncounterWithBoss[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('boss_encounters')
+    .select('*, boss_definitions(*)')
+    .eq('group_id', groupId)
+    .neq('status', 'active')
+    .order('week_start', { ascending: false });
+  if (error || !data) return [];
+  return data.map((item) => {
+    const { boss_definitions, ...encounter } = item as Record<string, unknown>;
+    return { ...encounter, boss: boss_definitions } as unknown as BossEncounterWithBoss;
+  });
 }
 
 export async function getBossHistory(
