@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase';
 import { calculateBossDamage } from '../boss-engine';
+import { getWeekRange, getCurrentWeekNumber } from '../date-utils';
 import type {
   Profile,
   SportType,
@@ -9,6 +10,7 @@ import type {
   BossAttackWithUser,
   BossTrophy,
   BossTrophyWithBoss,
+  Session,
 } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -274,6 +276,179 @@ export async function handleBossFailed(
       encounter_id: encounterId,
     },
   });
+}
+
+// ---------------------------------------------------------------------------
+// Weekly EP accumulation for boss attacks
+// ---------------------------------------------------------------------------
+
+export interface WeeklyEPInfo {
+  totalEP: number;
+  totalMinutes: number;
+  unusedSessions: Session[];
+  dominantSport: SportType;
+  epBySport: Record<string, number>;
+}
+
+/**
+ * Get accumulated EP from this week's sessions that haven't been used for
+ * boss attacks yet.
+ */
+export async function getUnusedWeeklyEP(
+  userId: string,
+  encounterId: string
+): Promise<WeeklyEPInfo> {
+  const supabase = createClient();
+  const wk = getCurrentWeekNumber();
+  const { start, end } = getWeekRange(wk);
+  const startStr = start.toISOString().split('T')[0];
+  const endStr = end.toISOString().split('T')[0];
+
+  // Get all sessions this week
+  const { data: sessions } = await supabase
+    .from('sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('date', startStr)
+    .lt('date', endStr)
+    .order('date', { ascending: true });
+
+  if (!sessions || sessions.length === 0) {
+    return { totalEP: 0, totalMinutes: 0, unusedSessions: [], dominantSport: 'running', epBySport: {} };
+  }
+
+  // Get session IDs already used in boss attacks for this encounter
+  const { data: usedAttacks } = await supabase
+    .from('boss_attacks')
+    .select('session_id')
+    .eq('encounter_id', encounterId)
+    .eq('user_id', userId);
+
+  const usedSessionIds = new Set((usedAttacks ?? []).map((a) => a.session_id));
+
+  const unusedSessions = sessions.filter((s) => !usedSessionIds.has(s.id));
+
+  if (unusedSessions.length === 0) {
+    return { totalEP: 0, totalMinutes: 0, unusedSessions: [], dominantSport: 'running', epBySport: {} };
+  }
+
+  const totalEP = unusedSessions.reduce((sum, s) => sum + s.ep_earned, 0);
+  const totalMinutes = unusedSessions.reduce((sum, s) => sum + s.duration_minutes, 0);
+
+  // Find dominant sport (most EP) for weakness/resistance calculation
+  const epBySportMap = new Map<SportType, number>();
+  for (const s of unusedSessions) {
+    epBySportMap.set(s.sport_type, (epBySportMap.get(s.sport_type) || 0) + s.ep_earned);
+  }
+  let dominantSport: SportType = 'running';
+  let maxEP = 0;
+  const epBySport: Record<string, number> = {};
+  for (const [sport, ep] of epBySportMap) {
+    epBySport[sport] = ep;
+    if (ep > maxEP) {
+      maxEP = ep;
+      dominantSport = sport;
+    }
+  }
+
+  return { totalEP, totalMinutes, unusedSessions, dominantSport, epBySport };
+}
+
+/**
+ * Attack the boss using all accumulated weekly EP.
+ * Inserts one boss_attack per unused session, calculates damage from total EP.
+ */
+export async function attackBossWeekly(params: {
+  userId: string;
+  groupId: string;
+}): Promise<{
+  damage: number;
+  isCritical: boolean;
+  bossEmoji: string;
+  bossName: string;
+  isKillingBlow: boolean;
+  remainingHP: number;
+  maxHP: number;
+  sessionsUsed: number;
+} | null> {
+  const supabase = createClient();
+
+  const encounter = await getActiveBossEncounter(params.groupId);
+  if (!encounter) return null;
+
+  const weeklyInfo = await getUnusedWeeklyEP(params.userId, encounter.id);
+  if (weeklyInfo.totalEP === 0) return null;
+
+  const uniqueAttackers = await getUniqueAttackerCount(encounter.id);
+
+  const damageResult = calculateBossDamage({
+    epEarned: weeklyInfo.totalEP,
+    sportType: weeklyInfo.dominantSport,
+    boss: encounter.boss,
+    encounter,
+    todayAttackerCount: uniqueAttackers,
+  });
+
+  // Insert one boss_attack row per unused session (split damage proportionally)
+  const totalEP = weeklyInfo.totalEP;
+  for (const session of weeklyInfo.unusedSessions) {
+    const proportion = session.ep_earned / totalEP;
+    const sessionDamage = Math.round(damageResult.damage * proportion);
+    await supabase.from('boss_attacks').insert({
+      encounter_id: encounter.id,
+      user_id: params.userId,
+      session_id: session.id,
+      damage: sessionDamage,
+      is_critical: damageResult.isCritical,
+      sport_type: session.sport_type,
+    });
+  }
+
+  const newHP = Math.max(0, encounter.current_hp - damageResult.damage);
+
+  await supabase
+    .from('boss_encounters')
+    .update({ current_hp: newHP })
+    .eq('id', encounter.id);
+
+  const feedEventType = damageResult.isCritical ? 'boss_critical_hit' : 'boss_attacked';
+  await supabase.from('activity_feed').insert({
+    group_id: params.groupId,
+    user_id: params.userId,
+    event_type: feedEventType,
+    event_data: {
+      boss_name: encounter.boss.name,
+      boss_emoji: encounter.boss.emoji,
+      damage: damageResult.damage,
+      is_critical: damageResult.isCritical,
+      sport_type: weeklyInfo.dominantSport,
+      remaining_hp: newHP,
+      max_hp: encounter.max_hp,
+      sessions_used: weeklyInfo.unusedSessions.length,
+    },
+  });
+
+  const isKillingBlow = newHP === 0;
+  if (isKillingBlow) {
+    await handleBossDefeated({
+      encounterId: encounter.id,
+      groupId: params.groupId,
+      killingBlowUserId: params.userId,
+      bossId: encounter.boss.id,
+      bossLevel: encounter.boss.level,
+    });
+  }
+
+  return {
+    damage: damageResult.damage,
+    isCritical: damageResult.isCritical,
+    bossEmoji: encounter.boss.emoji,
+    bossName: encounter.boss.name,
+    isKillingBlow,
+    remainingHP: newHP,
+    maxHP: encounter.max_hp,
+    sessionsUsed: weeklyInfo.unusedSessions.length,
+  };
 }
 
 export async function getUserBossTrophies(

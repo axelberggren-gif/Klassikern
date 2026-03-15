@@ -30,6 +30,8 @@ export {
   getBossAttacks,
   getUniqueAttackerCount,
   attackBoss,
+  attackBossWeekly,
+  getUnusedWeeklyEP,
   handleBossFailed,
   getUserBossTrophies,
   getUserTrophies,
@@ -38,3 +40,4 @@ export {
   getGroupBossHistory,
   getEncounterAttacks,
 } from './boss';
+export type { WeeklyEPInfo } from './boss';

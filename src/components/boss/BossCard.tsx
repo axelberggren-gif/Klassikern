@@ -1,20 +1,25 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { Swords } from 'lucide-react';
+import { useState } from 'react';
+import { Swords, Loader2, Zap } from 'lucide-react';
 import BossHPBar from './BossHPBar';
 import WeaknessResistance from './WeaknessResistance';
 import BossAttackLog from './BossAttackLog';
 import { isLastStandWindow } from '@/lib/boss-engine';
-import type { BossEncounterWithBoss, BossAttackWithUser } from '@/types/database';
+import { SPORT_CONFIG } from '@/lib/sport-config';
+import type { BossEncounterWithBoss, BossAttackWithUser, SportType } from '@/types/database';
+import type { WeeklyEPInfo } from '@/lib/store';
 
 interface BossCardProps {
   encounter: BossEncounterWithBoss | null;
   attacks: BossAttackWithUser[];
+  weeklyEP: WeeklyEPInfo | null;
+  onAttack: () => Promise<{ damage: number; isCritical: boolean } | null>;
 }
 
-export default function BossCard({ encounter, attacks }: BossCardProps) {
-  const router = useRouter();
+export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: BossCardProps) {
+  const [attacking, setAttacking] = useState(false);
+  const [attackResult, setAttackResult] = useState<{ damage: number; isCritical: boolean } | null>(null);
 
   if (!encounter) {
     return (
@@ -28,6 +33,23 @@ export default function BossCard({ encounter, attacks }: BossCardProps) {
 
   const lastStand = isLastStandWindow(encounter);
   const boss = encounter.boss;
+  const hasEP = weeklyEP && weeklyEP.totalEP > 0;
+
+  const handleAttack = async () => {
+    if (!hasEP || attacking) return;
+    setAttacking(true);
+    setAttackResult(null);
+    try {
+      const result = await onAttack();
+      if (result) {
+        setAttackResult(result);
+        // Clear result after 3 seconds
+        setTimeout(() => setAttackResult(null), 3000);
+      }
+    } finally {
+      setAttacking(false);
+    }
+  };
 
   return (
     <div
@@ -69,6 +91,16 @@ export default function BossCard({ encounter, attacks }: BossCardProps) {
         <WeaknessResistance weakness={boss.weakness} resistance={boss.resistance} />
       </div>
 
+      {/* Attack result flash */}
+      {attackResult && (
+        <div className="mt-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-4 py-3 text-center animate-pulse">
+          <p className="text-lg font-bold text-emerald-400">
+            {attackResult.isCritical && '💥 KRITISK! '}
+            -{attackResult.damage} HP
+          </p>
+        </div>
+      )}
+
       {/* Recent attacks */}
       <div className="mt-4">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
@@ -77,14 +109,62 @@ export default function BossCard({ encounter, attacks }: BossCardProps) {
         <BossAttackLog attacks={attacks} />
       </div>
 
-      {/* CTA */}
-      <button
-        onClick={() => router.push('/log')}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3.5 text-sm font-bold text-white shadow-lg transition-transform active:scale-[0.97]"
-      >
-        <Swords size={18} />
-        Attackera!
-      </button>
+      {/* Accumulated EP display + CTA */}
+      <div className="mt-5">
+        {hasEP ? (
+          <>
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-xs text-slate-400">Uppladdad energi</span>
+              <span className="flex items-center gap-1 text-sm font-bold text-emerald-400">
+                <Zap size={14} />
+                {weeklyEP.totalEP} EP
+              </span>
+            </div>
+            {/* Sport breakdown with weakness/resistance indicators */}
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {Object.entries(weeklyEP.epBySport).map(([sport, ep]) => {
+                const cfg = SPORT_CONFIG[sport as SportType];
+                const isWeak = encounter?.boss.weakness === sport;
+                const isResist = encounter?.boss.resistance === sport;
+                return (
+                  <span
+                    key={sport}
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                      isWeak
+                        ? 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30'
+                        : isResist
+                          ? 'bg-rose-500/15 text-rose-400 ring-1 ring-rose-500/30'
+                          : 'bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    {cfg?.icon} {ep} EP
+                    {isWeak && ' ×1.5'}
+                    {isResist && ' ×0.75'}
+                  </span>
+                );
+              })}
+            </div>
+            <button
+              onClick={handleAttack}
+              disabled={attacking}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3.5 text-sm font-bold text-white shadow-lg transition-transform active:scale-[0.97] disabled:opacity-60"
+            >
+              {attacking ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Swords size={18} />
+              )}
+              {attacking ? 'Attackerar...' : `Attackera! (${weeklyEP.totalEP} EP)`}
+            </button>
+          </>
+        ) : (
+          <div className="rounded-xl bg-slate-800 border border-slate-700 py-3.5 text-center">
+            <p className="text-xs text-slate-400">
+              Logga träning för att ladda upp en attack
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
