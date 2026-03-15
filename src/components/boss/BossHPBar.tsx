@@ -4,10 +4,14 @@ interface BossHPBarProps {
   currentHp: number;
   maxHp: number;
   isLastStand: boolean;
+  /** If set, shows a ghost bar draining from previousHp to currentHp */
+  previousHp?: number;
 }
 
-export default function BossHPBar({ currentHp, maxHp, isLastStand }: BossHPBarProps) {
+export default function BossHPBar({ currentHp, maxHp, isLastStand, previousHp }: BossHPBarProps) {
   const percentage = maxHp > 0 ? (currentHp / maxHp) * 100 : 0;
+  const previousPercentage = previousHp != null && maxHp > 0 ? (previousHp / maxHp) * 100 : null;
+  const showDrain = previousPercentage != null && previousPercentage > percentage;
 
   const barColor =
     percentage > 50
@@ -23,8 +27,16 @@ export default function BossHPBar({ currentHp, maxHp, isLastStand }: BossHPBarPr
           isLastStand ? 'animate-boss-pulse' : ''
         }`}
       >
+        {/* Ghost bar showing previous HP (drains away) */}
+        {showDrain && (
+          <div
+            className="absolute top-0 left-0 h-full rounded-full bg-rose-400/60 animate-hp-drain-ghost"
+            style={{ width: `${Math.max(previousPercentage, 0)}%` }}
+          />
+        )}
+        {/* Current HP bar */}
         <div
-          className={`h-full rounded-full transition-all duration-700 ease-out ${barColor} ${
+          className={`h-full rounded-full transition-all duration-1000 ease-out ${barColor} ${
             isLastStand ? 'animate-boss-hp-drain' : ''
           }`}
           style={{ width: `${Math.max(percentage, 0)}%` }}
