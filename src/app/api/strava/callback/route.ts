@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { cookies } from 'next/headers';
-import type { StravaTokenResponse } from '@/lib/strava';
+import { hasPrivateActivityScope, type StravaTokenResponse } from '@/lib/strava';
 
 /**
  * GET /api/strava/callback
@@ -81,6 +81,10 @@ export async function GET(request: NextRequest) {
 
     // Store/update the connection in the database
     // Use upsert since the user_id column has a unique constraint
+    // Store the ACTUAL granted scope — Strava lets users uncheck
+    // "View data about your private activities" which downgrades
+    // the scope from activity:read_all to activity:read.
+    const grantedScope = tokenData.scope || 'activity:read';
     const { error: upsertError } = await supabase
       .from('strava_connections')
       .upsert(
@@ -90,7 +94,7 @@ export async function GET(request: NextRequest) {
           access_token: tokenData.access_token,
           refresh_token: tokenData.refresh_token,
           token_expires_at: new Date(tokenData.expires_at * 1000).toISOString(),
-          scope: 'activity:read_all',
+          scope: grantedScope,
           athlete_name: `${tokenData.athlete.firstname} ${tokenData.athlete.lastname}`.trim(),
         },
         { onConflict: 'user_id' }
@@ -101,7 +105,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${baseUrl}/profile?strava=error`);
     }
 
-    return NextResponse.redirect(`${baseUrl}/profile?strava=connected`);
+    // Warn user if they didn't grant private activity access
+    const stravaParam = hasPrivateActivityScope(grantedScope)
+      ? 'connected'
+      : 'connected_limited';
+    return NextResponse.redirect(`${baseUrl}/profile?strava=${stravaParam}`);
   } catch (err) {
     console.error('Strava callback error:', err);
     return NextResponse.redirect(`${baseUrl}/profile?strava=error`);

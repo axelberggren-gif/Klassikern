@@ -8,11 +8,22 @@ export interface StravaTokenResponse {
   access_token: string;
   refresh_token: string;
   expires_at: number;
+  scope: string;
   athlete: {
     id: number;
     firstname: string;
     lastname: string;
   };
+}
+
+/**
+ * Check if the granted scope includes access to private activities.
+ * Strava's `activity:read_all` scope is required to read "Only Me" activities.
+ * Without it, private activities are invisible to the app.
+ */
+export function hasPrivateActivityScope(scope: string | null): boolean {
+  if (!scope) return false;
+  return scope.includes('activity:read_all');
 }
 
 export interface StravaActivity {

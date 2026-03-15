@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, RefreshCw, Unlink, ExternalLink } from 'lucide-react';
+import { CheckCircle, RefreshCw, Unlink, ExternalLink, AlertTriangle } from 'lucide-react';
 import { getStravaConnection, disconnectStrava } from '@/lib/store';
 import type { StravaConnection } from '@/types/database';
 
@@ -37,6 +37,10 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
 
       if (response.ok) {
         setSyncResult(data.message || `${data.imported} importerade`);
+        // Refresh connection to pick up any scope changes
+        if (data.scope_limited) {
+          loadConnection();
+        }
       } else {
         setSyncResult(data.error || 'Synkning misslyckades');
       }
@@ -67,6 +71,10 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
     );
   }
 
+  const scopeLimited = connection
+    ? !connection.scope?.includes('activity:read_all')
+    : false;
+
   if (connection) {
     return (
       <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
@@ -76,9 +84,29 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
             <h3 className="text-sm font-semibold text-slate-200">
               Strava kopplad
             </h3>
-            <CheckCircle size={16} className="text-emerald-400" />
+            {scopeLimited ? (
+              <AlertTriangle size={16} className="text-amber-400" />
+            ) : (
+              <CheckCircle size={16} className="text-emerald-400" />
+            )}
           </div>
         </div>
+
+        {scopeLimited && (
+          <div className="rounded-xl bg-amber-900/30 border border-amber-700/50 px-3 py-2 mb-3">
+            <p className="text-xs text-amber-300">
+              Privata pass synkas inte. Koppla om Strava och bocka i
+              &quot;View data about your private activities&quot; för att importera alla pass.
+            </p>
+            <a
+              href="/api/strava/authorize"
+              className="inline-flex items-center gap-1 mt-1.5 text-xs font-semibold text-amber-200 hover:text-amber-100"
+            >
+              <RefreshCw size={12} />
+              Koppla om
+            </a>
+          </div>
+        )}
 
         <p className="text-xs text-slate-400 mb-4">
           Atlet-ID: {connection.strava_athlete_id}

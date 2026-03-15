@@ -5,6 +5,7 @@ import {
   isTokenExpired,
   getStravaActivity,
   mapStravaToSession,
+  hasPrivateActivityScope,
 } from '@/lib/strava';
 import { calculateEP } from '@/lib/ep-calculator';
 import type { Database, StravaConnection } from '@/types/database';
@@ -150,6 +151,17 @@ export async function POST(request: NextRequest) {
   // Fetch the activity from Strava
   const activity = await getStravaActivity(accessToken, event.object_id);
   if (!activity) {
+    // If scope is only activity:read (not activity:read_all), Strava returns
+    // 404 for private ("Only Me") activities. Log this clearly.
+    const scopeOk = hasPrivateActivityScope(connection.scope);
+    if (!scopeOk) {
+      console.warn(
+        `Strava webhook: failed to fetch activity ${event.object_id} for user ${connection.user_id}. ` +
+        `Scope is "${connection.scope}" — private activities require "activity:read_all". ` +
+        `User needs to reconnect Strava with full permissions.`
+      );
+      return NextResponse.json({ status: 'ok', message: 'insufficient_scope' });
+    }
     console.error(
       `Strava webhook: failed to fetch activity ${event.object_id}`
     );
