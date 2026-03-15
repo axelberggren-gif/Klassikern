@@ -30,6 +30,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/profile?strava=error', origin));
   }
 
+  // Check if user already has a connection with limited scope.
+  // If so, force the approval prompt so Strava shows the permission
+  // checkboxes again (otherwise 'auto' silently re-uses old scope).
+  const { data: existing } = await supabase
+    .from('strava_connections')
+    .select('scope')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  const needsReauth =
+    existing && !existing.scope?.includes('activity:read_all');
+
   // Generate a CSRF state token
   const state = crypto.randomUUID();
 
@@ -49,7 +61,12 @@ export async function GET(request: NextRequest) {
   stravaAuthUrl.searchParams.set('client_id', clientId);
   stravaAuthUrl.searchParams.set('redirect_uri', redirectUri);
   stravaAuthUrl.searchParams.set('response_type', 'code');
-  stravaAuthUrl.searchParams.set('approval_prompt', 'auto');
+  // Use 'force' when reconnecting with limited scope to ensure Strava
+  // shows the permission screen with the private activities checkbox.
+  stravaAuthUrl.searchParams.set(
+    'approval_prompt',
+    needsReauth ? 'force' : 'auto'
+  );
   stravaAuthUrl.searchParams.set('scope', 'activity:read_all');
   stravaAuthUrl.searchParams.set('state', state);
 

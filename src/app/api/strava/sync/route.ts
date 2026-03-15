@@ -5,6 +5,7 @@ import {
   isTokenExpired,
   getStravaActivities,
   mapStravaToSession,
+  hasPrivateActivityScope,
 } from '@/lib/strava';
 import { calculateEP } from '@/lib/ep-calculator';
 import type { StravaConnection } from '@/types/database';
@@ -95,7 +96,16 @@ export async function POST() {
       .from('strava_connections')
       .update({ last_synced_at: new Date().toISOString() })
       .eq('user_id', user.id);
-    return NextResponse.json({ imported: 0, message: 'Inga nya aktiviteter hittades' });
+
+    // If scope is limited, private activities won't appear in the list
+    const scopeLimited = !hasPrivateActivityScope(connection.scope);
+    return NextResponse.json({
+      imported: 0,
+      message: scopeLimited
+        ? 'Inga aktiviteter hittades. Privata pass i Strava kräver att du kopplar om med fulla behörigheter.'
+        : 'Inga nya aktiviteter hittades',
+      scope_limited: scopeLimited,
+    });
   }
 
   // Get existing Strava activity IDs to skip duplicates
@@ -202,10 +212,12 @@ export async function POST() {
     .update({ last_synced_at: new Date().toISOString() })
     .eq('user_id', user.id);
 
+  const scopeLimited = !hasPrivateActivityScope(connection.scope);
   return NextResponse.json({
     imported: importedCount,
     total_ep_earned: totalNewEP,
     by_sport: bySport,
     message: `${importedCount} aktivitet${importedCount !== 1 ? 'er' : ''} importerade`,
+    scope_limited: scopeLimited,
   });
 }
