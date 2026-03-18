@@ -97,10 +97,23 @@ export default function ActivityFeed({ items, maxItems = 5 }: ActivityFeedProps)
               {getFeedIcon(item)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-slate-200">
-                <span className="font-semibold">{item.user?.display_name || 'Okand'}</span>{' '}
-                {getFeedText(item)}
-              </p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="text-sm text-slate-200">
+                  <span className="font-semibold">{item.user?.display_name || 'Okand'}</span>{' '}
+                  {getFeedText(item)}
+                </p>
+                {item.event_type === 'session_logged' && (item.event_data as Record<string, unknown>).source === 'strava' && (
+                  <span
+                    className="inline-flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-bold text-white"
+                    style={{ backgroundColor: '#FC4C02' }}
+                  >
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l3.65 7.215 3.648-7.215H14.61L10.463 0 6.322 8.229h2.95" />
+                    </svg>
+                    Strava
+                  </span>
+                )}
+              </div>
               {item.event_type === 'session_logged' && Boolean((item.event_data as Record<string, unknown>).note) && (
                 <p className="mt-0.5 text-xs text-slate-400 italic truncate">
                   &quot;{String((item.event_data as Record<string, unknown>).note)}&quot;

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useRef, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   Zap,
@@ -19,9 +19,10 @@ import {
   Lock,
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
-import { getBadgeIcon } from '@/components/BadgeUnlockModal';
+import BadgeUnlockModal, { getBadgeIcon } from '@/components/BadgeUnlockModal';
 import StravaConnect from '@/components/StravaConnect';
 import { useAuth } from '@/lib/auth';
+import { checkAndAwardBadges } from '@/lib/badge-checker';
 import { updateCurrentUser, getUserBadges, getAllBadges, getUserTrophies, getAllBossDefinitions } from '@/lib/store';
 import type { Badge, UserBadgeWithBadge, BossDefinition, BossTrophyWithBoss } from '@/types/database';
 
@@ -149,13 +150,43 @@ function PlaceholderRow({
   );
 }
 
-export default function ProfilePage() {
+function StravaStatusBanner() {
+  const searchParams = useSearchParams();
+  const stravaStatus = searchParams.get('strava');
+  if (stravaStatus === 'connected') {
+    return (
+      <div className="mx-4 mt-3 rounded-xl px-4 py-3 text-sm font-medium text-white" style={{ backgroundColor: '#FC4C02' }}>
+        ✓ Strava kopplad! Klicka &quot;Synka nu&quot; for att importera dina aktiviteter.
+      </div>
+    );
+  }
+  if (stravaStatus === 'error') {
+    return (
+      <div className="mx-4 mt-3 rounded-xl bg-rose-500/20 border border-rose-500/30 px-4 py-3 text-sm font-medium text-rose-400">
+        ✗ Strava-koppling misslyckades. Kontrollera att STRAVA_CLIENT_ID och STRAVA_CLIENT_SECRET ar konfigurerade, och att redirect URI matchar i Strava-appen.
+      </div>
+    );
+  }
+  if (stravaStatus === 'denied') {
+    return (
+      <div className="mx-4 mt-3 rounded-xl bg-amber-500/20 border border-amber-500/30 px-4 py-3 text-sm font-medium text-amber-400">
+        Strava-atkomst nekades.
+      </div>
+    );
+  }
+  return null;
+}
+
+function ProfilePageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, profile, loading, signOut } = useAuth();
   const [allBadgeDefs, setAllBadgeDefs] = useState<Badge[]>([]);
   const [earnedBadges, setEarnedBadges] = useState<UserBadgeWithBadge[]>([]);
   const [allBossDefs, setAllBossDefs] = useState<BossDefinition[]>([]);
   const [trophies, setTrophies] = useState<BossTrophyWithBoss[]>([]);
+  const [pendingBadges, setPendingBadges] = useState<Badge[]>([]);
+  const stravaCheckedRef = useRef(false);
 
   useEffect(() => {
     if (!user) return;
@@ -171,6 +202,29 @@ export default function ProfilePage() {
       setTrophies(userTrophies);
     });
   }, [user]);
+
+  // Award Strava badge immediately after OAuth callback
+  useEffect(() => {
+    if (!user || stravaCheckedRef.current) return;
+    if (searchParams.get('strava') !== 'connected') return;
+    stravaCheckedRef.current = true;
+
+    checkAndAwardBadges(user.id).then(async (newBadgeNames) => {
+      if (newBadgeNames.length === 0) return;
+      // Fetch full badge objects for the modal
+      const allBadges = await getAllBadges();
+      const newBadgeObjects = allBadges.filter((b) => newBadgeNames.includes(b.name));
+      setPendingBadges(newBadgeObjects);
+      // Refresh earned badges list
+      getUserBadges(user.id).then(setEarnedBadges);
+    });
+  }, [user, searchParams]);
+
+  function handleBadgesEarned(badgeNames: string[]) {
+    const newBadgeObjects = allBadgeDefs.filter((b) => badgeNames.includes(b.name));
+    setPendingBadges((prev) => [...prev, ...newBadgeObjects]);
+    getUserBadges(user!.id).then(setEarnedBadges);
+  }
 
   if (loading || !profile) return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -208,6 +262,9 @@ export default function ProfilePage() {
           <h1 className="text-xl font-bold text-slate-50">Profil</h1>
         </div>
       </div>
+
+      {/* Strava OAuth status banner */}
+      <StravaStatusBanner />
 
       <div className="flex flex-col gap-4 px-4 py-4">
         {/* Profile header */}
@@ -460,7 +517,9 @@ export default function ProfilePage() {
         </div>
 
         {/* Strava connection */}
-        {user && <StravaConnect userId={user.id} />}
+        {user && (
+          <StravaConnect userId={user.id} onBadgesEarned={handleBadgesEarned} />
+        )}
 
         {/* Settings card */}
         <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
@@ -484,6 +543,22 @@ export default function ProfilePage() {
 
         <div className="h-4" />
       </div>
+
+      {/* Badge unlock modals — shown one at a time */}
+      {pendingBadges.length > 0 && (
+        <BadgeUnlockModal
+          badge={pendingBadges[0]}
+          onDismiss={() => setPendingBadges((prev) => prev.slice(1))}
+        />
+      )}
     </AppShell>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={null}>
+      <ProfilePageInner />
+    </Suspense>
   );
 }

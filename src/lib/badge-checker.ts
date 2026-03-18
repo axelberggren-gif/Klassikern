@@ -108,30 +108,42 @@ export async function checkAndAwardBadges(userId: string): Promise<string[]> {
   // 5. Check each badge condition
   const newlyEarned: string[] = [];
 
+  // 5a. Check if user has a Strava connection (for the "Strava Kopplad" badge)
+  const { data: stravaConn } = await supabase
+    .from('strava_connections')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle();
+  const hasStravaConnected = !!stravaConn;
+
   for (const badge of allBadges as Badge[]) {
     // Skip already earned
     if (earnedBadgeIds.has(badge.id)) continue;
 
-    const condition = BADGE_CONDITIONS[badge.name];
-    if (!condition) continue;
-
-    if (condition(profile, sessions ?? [])) {
-      // Award the badge
-      const { error: insertError } = await supabase
-        .from('user_badges')
-        .insert({ user_id: userId, badge_id: badge.id });
-
-      if (insertError) {
-        // Could be a unique constraint violation if a race condition occurs
-        console.error(`Badge checker: could not award "${badge.name}"`, insertError);
-        continue;
-      }
-
-      newlyEarned.push(badge.name);
-
-      // Post to activity feed if user has a group
-      await postBadgeFeedEvent(userId, badge);
+    // Special case: Strava Kopplad requires a live DB check
+    if (badge.name === 'Strava Kopplad') {
+      if (!hasStravaConnected) continue;
+    } else {
+      const condition = BADGE_CONDITIONS[badge.name];
+      if (!condition) continue;
+      if (!condition(profile, sessions ?? [])) continue;
     }
+
+    // Award the badge
+    const { error: insertError } = await supabase
+      .from('user_badges')
+      .insert({ user_id: userId, badge_id: badge.id });
+
+    if (insertError) {
+      // Could be a unique constraint violation if a race condition occurs
+      console.error(`Badge checker: could not award "${badge.name}"`, insertError);
+      continue;
+    }
+
+    newlyEarned.push(badge.name);
+
+    // Post to activity feed if user has a group
+    await postBadgeFeedEvent(userId, badge);
   }
 
   return newlyEarned;
