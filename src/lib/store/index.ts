@@ -38,3 +38,4 @@ export {
   getGroupBossHistory,
   getEncounterAttacks,
 } from './boss';
+export type { AttackBossResult } from './boss';

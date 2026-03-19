@@ -64,9 +64,13 @@ export default function BossCard({ encounter, attacks }: BossCardProps) {
         </div>
       )}
 
-      {/* Weakness / Resistance */}
-      <div className="mt-3">
+      {/* Weakness / Resistance / Secret */}
+      <div className="mt-3 flex items-center gap-2 flex-wrap">
         <WeaknessResistance weakness={boss.weakness} resistance={boss.resistance} />
+        <div className="flex items-center gap-1.5 rounded-full bg-violet-500/15 px-3 py-1">
+          <span className="text-sm">❓</span>
+          <span className="text-[11px] font-semibold text-violet-400">Hemlig svaghet</span>
+        </div>
       </div>
 
       {/* Recent attacks */}
@@ -77,10 +81,16 @@ export default function BossCard({ encounter, attacks }: BossCardProps) {
         <BossAttackLog attacks={attacks} />
       </div>
 
+      {/* Uploaded energy info */}
+      <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
+        <span>Uppladdad energi</span>
+        <span className="font-bold text-emerald-400">⚡ Logga pass för att attackera</span>
+      </div>
+
       {/* CTA */}
       <button
         onClick={() => router.push('/log')}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3.5 text-sm font-bold text-white shadow-lg transition-transform active:scale-[0.97]"
+        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3.5 text-sm font-bold text-white shadow-lg transition-transform active:scale-[0.97]"
       >
         <Swords size={18} />
         Attackera!

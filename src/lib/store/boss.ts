@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase';
-import { calculateBossDamage } from '../boss-engine';
+import { calculateBossDamage, generateDefeatText } from '../boss-engine';
+import type { CritContext } from '../boss-engine';
 import type {
   Profile,
   SportType,
@@ -70,13 +71,22 @@ export async function getUniqueAttackerCount(encounterId: string): Promise<numbe
   return uniqueUserIds.size;
 }
 
-export async function attackBoss(params: {
-  userId: string;
-  groupId: string;
-  sessionId: string;
-  sportType: SportType;
-  epEarned: number;
-}): Promise<{
+async function getTodayAttacksByUser(encounterId: string, userId: string): Promise<number> {
+  const supabase = createClient();
+  const today = new Date().toISOString().split('T')[0];
+  const { count, error } = await supabase
+    .from('boss_attacks')
+    .select('*', { count: 'exact', head: true })
+    .eq('encounter_id', encounterId)
+    .eq('user_id', userId)
+    .gte('created_at', `${today}T00:00:00`)
+    .lt('created_at', `${today}T23:59:59`);
+
+  if (error) return 1; // Assume not first if we can't check
+  return count ?? 0;
+}
+
+export interface AttackBossResult {
   damage: number;
   isCritical: boolean;
   bossEmoji: string;
@@ -84,13 +94,34 @@ export async function attackBoss(params: {
   isKillingBlow: boolean;
   remainingHP: number;
   maxHP: number;
-} | null> {
+  defeatText: string | null;
+  critSecret: string | null;
+}
+
+export async function attackBoss(params: {
+  userId: string;
+  groupId: string;
+  sessionId: string;
+  sportType: SportType;
+  epEarned: number;
+  durationMinutes: number;
+  userStreak: number;
+}): Promise<AttackBossResult | null> {
   const supabase = createClient();
 
   const encounter = await getActiveBossEncounter(params.groupId);
   if (!encounter) return null;
 
   const uniqueAttackers = await getUniqueAttackerCount(encounter.id);
+  const todayUserAttacks = await getTodayAttacksByUser(encounter.id, params.userId);
+
+  const critContext: CritContext = {
+    sessionTime: new Date(),
+    sessionDurationMinutes: params.durationMinutes,
+    userStreak: params.userStreak,
+    todayAttackerCount: uniqueAttackers,
+    isFirstAttackToday: todayUserAttacks === 0,
+  };
 
   const damageResult = calculateBossDamage({
     epEarned: params.epEarned,
@@ -98,6 +129,7 @@ export async function attackBoss(params: {
     boss: encounter.boss,
     encounter,
     todayAttackerCount: uniqueAttackers,
+    critContext,
   });
 
   const { error: attackError } = await supabase
@@ -143,14 +175,39 @@ export async function attackBoss(params: {
     },
   });
 
+  let defeatText: string | null = null;
+  let critSecret: string | null = null;
+
   const isKillingBlow = newHP === 0;
   if (isKillingBlow) {
+    // Get killer's name and all group member names for personalized defeat text
+    const { data: killerProfile } = await supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('id', params.userId)
+      .single();
+
+    const { data: groupMembers } = await supabase
+      .from('group_members')
+      .select('profiles(display_name)')
+      .eq('group_id', params.groupId);
+
+    const killerName = killerProfile?.display_name ?? 'Okänd';
+    const memberNames = (groupMembers ?? []).map(
+      (m) => ((m as Record<string, unknown>).profiles as { display_name: string })?.display_name ?? 'Okänd'
+    );
+
+    defeatText = generateDefeatText(encounter.boss, killerName, memberNames);
+    critSecret = encounter.boss.crit_hint ?? null;
+
     await handleBossDefeated({
       encounterId: encounter.id,
       groupId: params.groupId,
       killingBlowUserId: params.userId,
       bossId: encounter.boss.id,
       bossLevel: encounter.boss.level,
+      defeatText,
+      critSecret,
     });
   }
 
@@ -162,6 +219,8 @@ export async function attackBoss(params: {
     isKillingBlow,
     remainingHP: newHP,
     maxHP: encounter.max_hp,
+    defeatText,
+    critSecret,
   };
 }
 
@@ -171,6 +230,8 @@ async function handleBossDefeated(params: {
   killingBlowUserId: string;
   bossId: number;
   bossLevel: number;
+  defeatText: string;
+  critSecret: string | null;
 }) {
   const supabase = createClient();
 
@@ -180,6 +241,8 @@ async function handleBossDefeated(params: {
       status: 'defeated',
       defeated_at: new Date().toISOString(),
       defeated_by: params.killingBlowUserId,
+      defeat_text: params.defeatText,
+      crit_secret: params.critSecret,
     })
     .eq('id', params.encounterId);
 
@@ -236,6 +299,8 @@ async function handleBossDefeated(params: {
       bonus_ep: baseBonusEP,
       killing_blow_user_id: params.killingBlowUserId,
       total_attackers: uniqueAttackerIds.length,
+      defeat_text: params.defeatText,
+      crit_secret: params.critSecret,
     },
   });
 }

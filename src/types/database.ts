@@ -26,6 +26,16 @@ export type FeedEventType =
   | 'boss_failed'
   | 'boss_critical_hit';
 export type BossEncounterStatus = 'active' | 'defeated' | 'failed' | 'upcoming';
+
+// Crit condition types for smart critical hit system
+export type CritCondition =
+  | { type: 'evening_session'; description: string }
+  | { type: 'dawn_raid'; description: string }
+  | { type: 'long_session'; min_minutes: number; description: string }
+  | { type: 'weekend_warrior'; description: string }
+  | { type: 'first_attack_of_day'; description: string }
+  | { type: 'streak'; min_days: number; description: string }
+  | { type: 'group_sync'; min_same_day: number; description: string };
 export type GroupMemberRole = 'owner' | 'admin' | 'member';
 
 // ---------------------------------------------------------------------------
@@ -433,6 +443,9 @@ export interface Database {
           base_hp: number;
           weakness: SportType | null;
           resistance: SportType | null;
+          crit_conditions: CritCondition[];
+          defeat_quotes: string[];
+          crit_hint: string | null;
           created_at: string;
         };
         Insert: {
@@ -444,6 +457,9 @@ export interface Database {
           base_hp: number;
           weakness?: SportType | null;
           resistance?: SportType | null;
+          crit_conditions?: CritCondition[];
+          defeat_quotes?: string[];
+          crit_hint?: string | null;
           created_at?: string;
         };
         Update: {
@@ -455,6 +471,9 @@ export interface Database {
           base_hp?: number;
           weakness?: SportType | null;
           resistance?: SportType | null;
+          crit_conditions?: CritCondition[];
+          defeat_quotes?: string[];
+          crit_hint?: string | null;
         };
         Relationships: [];
       };
@@ -470,6 +489,8 @@ export interface Database {
           week_end: string;
           defeated_at: string | null;
           defeated_by: string | null;
+          defeat_text: string | null;
+          crit_secret: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -484,6 +505,8 @@ export interface Database {
           week_end: string;
           defeated_at?: string | null;
           defeated_by?: string | null;
+          defeat_text?: string | null;
+          crit_secret?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -498,6 +521,8 @@ export interface Database {
           week_end?: string;
           defeated_at?: string | null;
           defeated_by?: string | null;
+          defeat_text?: string | null;
+          crit_secret?: string | null;
           updated_at?: string;
         };
         Relationships: [];
