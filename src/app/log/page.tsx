@@ -6,11 +6,9 @@ import { Minus, Plus, ArrowLeft } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import SessionReward from '@/components/SessionReward';
 import BadgeUnlockModal from '@/components/BadgeUnlockModal';
-import BossDefeatCinematic from '@/components/boss/BossDefeatCinematic';
 import { SPORT_CONFIG, EFFORT_LABELS, ACTIVE_SPORT_TYPES } from '@/lib/sport-config';
 import { useAuth } from '@/lib/auth';
-import { logSession, getUserGroupId, getAllBadges, attackBoss } from '@/lib/store';
-import type { AttackBossResult } from '@/lib/store';
+import { logSession, getUserGroupId, getAllBadges } from '@/lib/store';
 import { getCurrentWeekNumber, getPlanForWeek } from '@/lib/training-plan';
 import type { SportType, EffortRating, Session, Badge, PlannedSession } from '@/types/database';
 
@@ -28,8 +26,6 @@ export default function LogSessionPage() {
   const [currentBadge, setCurrentBadge] = useState<Badge | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
-  const [bossResult, setBossResult] = useState<AttackBossResult | null>(null);
-  const [showDefeatCinematic, setShowDefeatCinematic] = useState(false);
 
   useEffect(() => {
     const wk = getCurrentWeekNumber();
@@ -70,22 +66,6 @@ export default function LogSessionPage() {
     if (result) {
       setReward(result.session);
 
-      // Attack boss if in a group
-      if (groupId) {
-        const bossAttackResult = await attackBoss({
-          userId: user.id,
-          groupId,
-          sessionId: result.session.id,
-          sportType,
-          epEarned: result.session.ep_earned,
-          durationMinutes: duration,
-          userStreak: profile.current_streak,
-        });
-        if (bossAttackResult) {
-          setBossResult(bossAttackResult);
-        }
-      }
-
       if (result.newBadges.length > 0) {
         const allBadgeDefs = await getAllBadges();
         const earned = allBadgeDefs.filter((b) =>
@@ -98,21 +78,6 @@ export default function LogSessionPage() {
 
   function handleRewardDone() {
     setReward(null);
-    // If boss was killed, show defeat cinematic next
-    if (bossResult?.isKillingBlow) {
-      setShowDefeatCinematic(true);
-      return;
-    }
-    // Otherwise continue to badges or redirect
-    proceedAfterBoss();
-  }
-
-  function handleDefeatCinematicDone() {
-    setShowDefeatCinematic(false);
-    proceedAfterBoss();
-  }
-
-  function proceedAfterBoss() {
     if (pendingBadges.length > 0) {
       setCurrentBadge(pendingBadges[0]);
       setPendingBadges((prev) => prev.slice(1));
@@ -150,18 +115,6 @@ export default function LogSessionPage() {
         <SessionReward
           session={reward}
           onDone={handleRewardDone}
-        />
-      )}
-
-      {showDefeatCinematic && bossResult?.isKillingBlow && bossResult.defeatText && (
-        <BossDefeatCinematic
-          bossEmoji={bossResult.bossEmoji}
-          bossName={bossResult.bossName}
-          defeatText={bossResult.defeatText}
-          critSecret={bossResult.critSecret}
-          bonusDamage={bossResult.damage}
-          killerName={profile?.display_name ?? 'Okänd'}
-          onDone={handleDefeatCinematicDone}
         />
       )}
 

@@ -107,7 +107,7 @@ export default function BossDefeatCinematic({
               phase === 'boss_appear'
                 ? 'animate-boss-entrance'
                 : phase === 'damage_flash'
-                  ? 'animate-boss-hit'
+                  ? 'animate-boss-cinematic-hit'
                   : phase === 'defeat' || phase === 'speech' || phase === 'secret'
                     ? 'animate-boss-crumble'
                     : ''

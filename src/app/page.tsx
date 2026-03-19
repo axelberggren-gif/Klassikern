@@ -9,6 +9,7 @@ import WeekSummary from '@/components/dashboard/WeekSummary';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import BossCard from '@/components/boss/BossCard';
 import BossTimeline from '@/components/boss/BossTimeline';
+import BossDefeatCinematic from '@/components/boss/BossDefeatCinematic';
 import DamageLeaderboard from '@/components/leaderboard/DamageLeaderboard';
 import { useAuth } from '@/lib/auth';
 import {
@@ -19,7 +20,10 @@ import {
   getActiveBossEncounter,
   getEncounterAttacks,
   getGroupBossHistory,
+  getUnusedWeeklyEP,
+  attackBossWeekly,
 } from '@/lib/store';
+import type { WeeklyEPInfo, AttackBossWeeklyResult } from '@/lib/store';
 import { getCurrentWeekNumber, getPlanForWeek } from '@/lib/training-plan';
 import type {
   Profile,
@@ -43,6 +47,9 @@ export default function DashboardPage() {
   const [bossEncounter, setBossEncounter] = useState<BossEncounterWithBoss | null>(null);
   const [bossAttacks, setBossAttacks] = useState<BossAttackWithUser[]>([]);
   const [bossHistory, setBossHistory] = useState<BossEncounterWithBoss[]>([]);
+  const [weeklyEP, setWeeklyEP] = useState<WeeklyEPInfo | null>(null);
+  const [groupId, setGroupId] = useState<string | null>(null);
+  const [defeatResult, setDefeatResult] = useState<AttackBossWeeklyResult | null>(null);
 
   useEffect(() => {
     if (!user || !profile) return;
@@ -82,6 +89,7 @@ export default function DashboardPage() {
       );
 
       setMembers(groupMembers);
+      setGroupId(groupId);
 
       if (groupId) {
         const [feedData, encounter, history] = await Promise.all([
@@ -94,8 +102,12 @@ export default function DashboardPage() {
         setBossHistory(history);
 
         if (encounter) {
-          const attacks = await getEncounterAttacks(encounter.id);
+          const [attacks, epInfo] = await Promise.all([
+            getEncounterAttacks(encounter.id),
+            getUnusedWeeklyEP(user.id, encounter.id),
+          ]);
           setBossAttacks(attacks);
+          setWeeklyEP(epInfo);
         }
       }
     };
@@ -117,7 +129,53 @@ export default function DashboardPage() {
   // Build damage leaderboard entries from attacks
   const damageEntries = buildDamageEntries(bossAttacks, members);
 
+  const handleBossAttack = async () => {
+    if (!user || !groupId) return null;
+    const result = await attackBossWeekly({
+      userId: user.id,
+      groupId,
+      userStreak: profile.current_streak,
+    });
+    if (result) {
+      // Show defeat cinematic if killing blow
+      if (result.isKillingBlow && result.defeatText) {
+        setDefeatResult(result);
+      }
+      // Refresh boss data after attack
+      const encounter = await getActiveBossEncounter(groupId);
+      setBossEncounter(encounter);
+      if (encounter) {
+        const [attacks, epInfo] = await Promise.all([
+          getEncounterAttacks(encounter.id),
+          getUnusedWeeklyEP(user.id, encounter.id),
+        ]);
+        setBossAttacks(attacks);
+        setWeeklyEP(epInfo);
+      } else {
+        // Boss defeated — refresh history
+        const history = await getGroupBossHistory(groupId);
+        setBossHistory(history);
+        setWeeklyEP(null);
+      }
+    }
+    return result;
+  };
+
+  const accumulatedHours = weeklyEP ? Math.round((weeklyEP.totalMinutes / 60) * 10) / 10 : 0;
+
   return (
+    <>
+      {defeatResult && defeatResult.defeatText && (
+        <BossDefeatCinematic
+          bossEmoji={defeatResult.bossEmoji}
+          bossName={defeatResult.bossName}
+          defeatText={defeatResult.defeatText}
+          critSecret={defeatResult.critSecret}
+          bonusDamage={defeatResult.damage}
+          killerName={profile.display_name}
+          onDone={() => setDefeatResult(null)}
+        />
+      )}
     <AppShell>
       {/* Compact Dark Header */}
       <div className="px-5 pt-12 pb-4">
@@ -131,6 +189,11 @@ export default function DashboardPage() {
             </div>
           </Link>
           <div className="flex items-center gap-3">
+            {accumulatedHours > 0 && (
+              <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-400">
+                ⚡ {accumulatedHours}h
+              </span>
+            )}
             <StreakBadge streak={profile.current_streak} />
             <span className="text-xs font-semibold text-slate-400">
               Kapitel {weekNumber}
@@ -141,7 +204,7 @@ export default function DashboardPage() {
 
       <div className="flex flex-col gap-4 px-4">
         {/* Boss Card — HERO */}
-        <BossCard encounter={bossEncounter} attacks={bossAttacks} />
+        <BossCard encounter={bossEncounter} attacks={bossAttacks} weeklyEP={weeklyEP} onAttack={handleBossAttack} />
 
         {/* Compact Damage Leaderboard */}
         <DamageLeaderboard entries={damageEntries} currentUserId={user!.id} />
@@ -179,6 +242,7 @@ export default function DashboardPage() {
         </div>
       </div>
     </AppShell>
+    </>
   );
 }
 
