@@ -196,6 +196,24 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 - **Vercel preview "stuck on loading" after login**: The @serwist/next service worker caches JS chunks (CacheFirst) and pages (NetworkFirst), serving stale code from previous deployments on preview URLs. This prevents React from hydrating properly — auth hooks never execute, no Supabase API calls are made after login. Fix: the SW is now disabled on preview via `VERCEL_ENV === "preview"` in `next.config.ts`. If this recurs on a user's browser, they must **unregister the service worker** (DevTools → Application → Service Workers → Unregister) and hard-refresh (Cmd+Shift+R), or use incognito mode. The `useAuth` hook also uses `getUser()` (server call) instead of `getSession()` (cookie-only) for additional resilience.
 
+## Worktree & Branching Rules
+
+**CRITICAL: These rules exist because a full-file rewrite in a worktree once caused 5 merge conflicts and nearly overwrote weeks of progress on main.**
+
+### Before Starting Work
+1. **Always `git fetch origin main`** and check `git log --oneline origin/main...HEAD` to understand what main has that this branch doesn't.
+2. **Read files before modifying them.** Understand the current state — main may have evolved significantly since the branch was created.
+
+### While Working
+3. **NEVER use the `Write` tool to rewrite an existing file.** Use `Edit` for targeted changes. Full-file rewrites via `Write` destroy any concurrent changes from other branches/PRs that have been merged to main. This is the #1 cause of merge conflicts.
+4. **If a file needs many changes**, make multiple `Edit` calls instead of one `Write`. Each edit should be a surgical change that preserves surrounding code.
+5. **Before modifying any function or module**, run `/gitnexus-impact-analysis` to understand the blast radius and ensure you're not breaking callers or dependents.
+
+### Before Committing
+6. **Run `npm run build`** to verify TypeScript compiles.
+7. **Run `git diff origin/main -- <file>` on heavily modified files** to verify you haven't accidentally removed code that main added.
+8. **If merging main into your branch**, always use `git merge` (not rebase) to preserve both sides, and carefully resolve conflicts by keeping main's progress and layering your changes on top.
+
 ## Important Notes
 
 - Always run `npm run build` after changes to verify TypeScript compiles
@@ -214,7 +232,7 @@ This project is indexed by GitNexus as **Klassikern webapp** (492 symbols, 1273 
 
 ## Always Do
 
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
+- **MUST run `/gitnexus-impact-analysis` (the skill) before editing any symbol.** This is a BLOCKING requirement — do not skip it. Before modifying a function, class, or method, invoke the `gitnexus-impact-analysis` skill to understand the blast radius. If the skill is unavailable, manually run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
 - **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
 - **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
 - When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
