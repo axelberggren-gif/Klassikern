@@ -9,6 +9,7 @@ import WeekSummary from '@/components/dashboard/WeekSummary';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import BossCard from '@/components/boss/BossCard';
 import BossTimeline from '@/components/boss/BossTimeline';
+import BossDefeatCinematic from '@/components/boss/BossDefeatCinematic';
 import DamageLeaderboard from '@/components/leaderboard/DamageLeaderboard';
 import { useAuth } from '@/lib/auth';
 import {
@@ -22,7 +23,7 @@ import {
   getUnusedWeeklyEP,
   attackBossWeekly,
 } from '@/lib/store';
-import type { WeeklyEPInfo } from '@/lib/store';
+import type { WeeklyEPInfo, AttackBossWeeklyResult } from '@/lib/store';
 import { getCurrentWeekNumber, getPlanForWeek } from '@/lib/training-plan';
 import type {
   Profile,
@@ -48,6 +49,7 @@ export default function DashboardPage() {
   const [bossHistory, setBossHistory] = useState<BossEncounterWithBoss[]>([]);
   const [weeklyEP, setWeeklyEP] = useState<WeeklyEPInfo | null>(null);
   const [groupId, setGroupId] = useState<string | null>(null);
+  const [defeatResult, setDefeatResult] = useState<AttackBossWeeklyResult | null>(null);
 
   useEffect(() => {
     if (!user || !profile) return;
@@ -129,8 +131,16 @@ export default function DashboardPage() {
 
   const handleBossAttack = async () => {
     if (!user || !groupId) return null;
-    const result = await attackBossWeekly({ userId: user.id, groupId });
+    const result = await attackBossWeekly({
+      userId: user.id,
+      groupId,
+      userStreak: profile.current_streak,
+    });
     if (result) {
+      // Show defeat cinematic if killing blow
+      if (result.isKillingBlow && result.defeatText) {
+        setDefeatResult(result);
+      }
       // Refresh boss data after attack
       const encounter = await getActiveBossEncounter(groupId);
       setBossEncounter(encounter);
@@ -141,6 +151,11 @@ export default function DashboardPage() {
         ]);
         setBossAttacks(attacks);
         setWeeklyEP(epInfo);
+      } else {
+        // Boss defeated — refresh history
+        const history = await getGroupBossHistory(groupId);
+        setBossHistory(history);
+        setWeeklyEP(null);
       }
     }
     return result;
@@ -149,6 +164,18 @@ export default function DashboardPage() {
   const accumulatedHours = weeklyEP ? Math.round((weeklyEP.totalMinutes / 60) * 10) / 10 : 0;
 
   return (
+    <>
+      {defeatResult && defeatResult.defeatText && (
+        <BossDefeatCinematic
+          bossEmoji={defeatResult.bossEmoji}
+          bossName={defeatResult.bossName}
+          defeatText={defeatResult.defeatText}
+          critSecret={defeatResult.critSecret}
+          bonusDamage={defeatResult.damage}
+          killerName={profile.display_name}
+          onDone={() => setDefeatResult(null)}
+        />
+      )}
     <AppShell>
       {/* Compact Dark Header */}
       <div className="px-5 pt-12 pb-4">
@@ -215,6 +242,7 @@ export default function DashboardPage() {
         </div>
       </div>
     </AppShell>
+    </>
   );
 }
 

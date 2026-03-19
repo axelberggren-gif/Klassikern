@@ -12,6 +12,7 @@ import {
   Crown,
   Star,
   Target,
+  Activity,
 } from 'lucide-react';
 import type { Badge } from '@/types/database';
 
@@ -29,6 +30,7 @@ const BADGE_ICON_MAP: Record<
   crown: Crown,
   star: Star,
   target: Target,
+  activity: Activity,
 };
 
 export function getBadgeIcon(

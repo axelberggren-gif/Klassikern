@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase';
-import { calculateBossDamage } from '../boss-engine';
+import { calculateBossDamage, generateDefeatText } from '../boss-engine';
+import type { CritContext } from '../boss-engine';
 import { getWeekRange, getCurrentWeekNumber } from '../date-utils';
 import type {
   Profile,
@@ -72,6 +73,21 @@ export async function getUniqueAttackerCount(encounterId: string): Promise<numbe
   return uniqueUserIds.size;
 }
 
+async function getTodayAttacksByUser(encounterId: string, userId: string): Promise<number> {
+  const supabase = createClient();
+  const today = new Date().toISOString().split('T')[0];
+  const { count, error } = await supabase
+    .from('boss_attacks')
+    .select('*', { count: 'exact', head: true })
+    .eq('encounter_id', encounterId)
+    .eq('user_id', userId)
+    .gte('created_at', `${today}T00:00:00`)
+    .lt('created_at', `${today}T23:59:59`);
+
+  if (error) return 1;
+  return count ?? 0;
+}
+
 export async function attackBoss(params: {
   userId: string;
   groupId: string;
@@ -93,6 +109,7 @@ export async function attackBoss(params: {
   if (!encounter) return null;
 
   const uniqueAttackers = await getUniqueAttackerCount(encounter.id);
+  const todayUserAttacks = await getTodayAttacksByUser(encounter.id, params.userId);
 
   const damageResult = calculateBossDamage({
     epEarned: params.epEarned,
@@ -100,6 +117,13 @@ export async function attackBoss(params: {
     boss: encounter.boss,
     encounter,
     todayAttackerCount: uniqueAttackers,
+    critContext: {
+      sessionTime: new Date(),
+      sessionDurationMinutes: 45, // default for per-session attacks
+      userStreak: 0,
+      todayAttackerCount: uniqueAttackers,
+      isFirstAttackToday: todayUserAttacks === 0,
+    },
   });
 
   const { error: attackError } = await supabase
@@ -173,6 +197,8 @@ async function handleBossDefeated(params: {
   killingBlowUserId: string;
   bossId: number;
   bossLevel: number;
+  defeatText?: string;
+  critSecret?: string | null;
 }) {
   const supabase = createClient();
 
@@ -182,6 +208,8 @@ async function handleBossDefeated(params: {
       status: 'defeated',
       defeated_at: new Date().toISOString(),
       defeated_by: params.killingBlowUserId,
+      defeat_text: params.defeatText ?? null,
+      crit_secret: params.critSecret ?? null,
     })
     .eq('id', params.encounterId);
 
@@ -238,6 +266,8 @@ async function handleBossDefeated(params: {
       bonus_ep: baseBonusEP,
       killing_blow_user_id: params.killingBlowUserId,
       total_attackers: uniqueAttackerIds.length,
+      defeat_text: params.defeatText ?? null,
+      crit_secret: params.critSecret ?? null,
     },
   });
 }
@@ -358,10 +388,7 @@ export async function getUnusedWeeklyEP(
  * Attack the boss using all accumulated weekly EP.
  * Inserts one boss_attack per unused session, calculates damage from total EP.
  */
-export async function attackBossWeekly(params: {
-  userId: string;
-  groupId: string;
-}): Promise<{
+export interface AttackBossWeeklyResult {
   damage: number;
   isCritical: boolean;
   bossEmoji: string;
@@ -370,7 +397,15 @@ export async function attackBossWeekly(params: {
   remainingHP: number;
   maxHP: number;
   sessionsUsed: number;
-} | null> {
+  defeatText: string | null;
+  critSecret: string | null;
+}
+
+export async function attackBossWeekly(params: {
+  userId: string;
+  groupId: string;
+  userStreak?: number;
+}): Promise<AttackBossWeeklyResult | null> {
   const supabase = createClient();
 
   const encounter = await getActiveBossEncounter(params.groupId);
@@ -381,12 +416,23 @@ export async function attackBossWeekly(params: {
 
   const uniqueAttackers = await getUniqueAttackerCount(encounter.id);
 
+  // Build crit context for smart crit evaluation
+  const todayUserAttacks = await getTodayAttacksByUser(encounter.id, params.userId);
+  const critContext: CritContext = {
+    sessionTime: new Date(),
+    sessionDurationMinutes: weeklyInfo.totalMinutes,
+    userStreak: params.userStreak ?? 0,
+    todayAttackerCount: uniqueAttackers,
+    isFirstAttackToday: todayUserAttacks === 0,
+  };
+
   const damageResult = calculateBossDamage({
     epEarned: weeklyInfo.totalEP,
     sportType: weeklyInfo.dominantSport,
     boss: encounter.boss,
     encounter,
     todayAttackerCount: uniqueAttackers,
+    critContext,
   });
 
   // Insert one boss_attack row per unused session (split damage proportionally)
@@ -428,14 +474,39 @@ export async function attackBossWeekly(params: {
     },
   });
 
+  let defeatText: string | null = null;
+  let critSecret: string | null = null;
+
   const isKillingBlow = newHP === 0;
   if (isKillingBlow) {
+    // Get killer's name and all group member names for personalized defeat text
+    const { data: killerProfile } = await supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('id', params.userId)
+      .single();
+
+    const { data: groupMembers } = await supabase
+      .from('group_members')
+      .select('profiles(display_name)')
+      .eq('group_id', params.groupId);
+
+    const killerName = killerProfile?.display_name ?? 'Okänd';
+    const memberNames = (groupMembers ?? []).map(
+      (m) => ((m as Record<string, unknown>).profiles as { display_name: string })?.display_name ?? 'Okänd'
+    );
+
+    defeatText = generateDefeatText(encounter.boss, killerName, memberNames);
+    critSecret = encounter.boss.crit_hint ?? null;
+
     await handleBossDefeated({
       encounterId: encounter.id,
       groupId: params.groupId,
       killingBlowUserId: params.userId,
       bossId: encounter.boss.id,
       bossLevel: encounter.boss.level,
+      defeatText,
+      critSecret,
     });
   }
 
@@ -448,6 +519,8 @@ export async function attackBossWeekly(params: {
     remainingHP: newHP,
     maxHP: encounter.max_hp,
     sessionsUsed: weeklyInfo.unusedSessions.length,
+    defeatText,
+    critSecret,
   };
 }
 

@@ -3,13 +3,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, RefreshCw, Unlink, ExternalLink, AlertTriangle } from 'lucide-react';
 import { getStravaConnection, disconnectStrava } from '@/lib/store';
+import { checkAndAwardBadges } from '@/lib/badge-checker';
 import type { StravaConnection } from '@/types/database';
 
 interface StravaConnectProps {
   userId: string;
+  onBadgesEarned?: (badgeNames: string[]) => void;
 }
 
-export default function StravaConnect({ userId }: StravaConnectProps) {
+export default function StravaConnect({ userId, onBadgesEarned }: StravaConnectProps) {
   const [connection, setConnection] = useState<StravaConnection | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -37,6 +39,11 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
 
       if (response.ok) {
         setSyncResult(data.message || `${data.imported} importerade`);
+        // Check for newly earned badges after syncing activities
+        const newBadges = await checkAndAwardBadges(userId);
+        if (newBadges.length > 0) {
+          onBadgesEarned?.(newBadges);
+        }
         // Refresh connection to pick up any scope changes
         if (data.scope_limited) {
           loadConnection();
@@ -76,6 +83,8 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
     : false;
 
   if (connection) {
+    const athleteLabel = connection.athlete_name || `Atlet ${connection.strava_athlete_id}`;
+
     return (
       <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
         <div className="flex items-center justify-between mb-3">
@@ -109,7 +118,7 @@ export default function StravaConnect({ userId }: StravaConnectProps) {
         )}
 
         <p className="text-xs text-slate-400 mb-4">
-          Atlet-ID: {connection.strava_athlete_id}
+          {athleteLabel}
         </p>
 
         <button

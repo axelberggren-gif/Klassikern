@@ -40,4 +40,4 @@ export {
   getGroupBossHistory,
   getEncounterAttacks,
 } from './boss';
-export type { WeeklyEPInfo } from './boss';
+export type { WeeklyEPInfo, AttackBossWeeklyResult } from './boss';

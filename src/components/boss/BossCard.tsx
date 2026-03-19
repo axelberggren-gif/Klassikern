@@ -137,9 +137,13 @@ export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: Bos
           </div>
         )}
 
-        {/* Weakness / Resistance */}
-        <div className="mt-3">
+        {/* Weakness / Resistance / Secret */}
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
           <WeaknessResistance weakness={boss.weakness} resistance={boss.resistance} />
+          <div className="flex items-center gap-1.5 rounded-full bg-violet-500/15 px-3 py-1">
+            <span className="text-sm">❓</span>
+            <span className="text-[11px] font-semibold text-violet-400">Hemlig svaghet</span>
+          </div>
         </div>
 
         {/* Hit result banner (persists for 3s) */}
