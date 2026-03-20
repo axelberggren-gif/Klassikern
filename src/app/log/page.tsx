@@ -59,7 +59,7 @@ export default function LogSessionPage() {
       distanceKm: distance ? parseFloat(distance) : null,
       effortRating: effort,
       note,
-      plannedSessionId: todayPlanned?.sport_type === sportType ? todayPlanned.id : null,
+      plannedSessionId: null,
     });
 
     setSubmitting(false);

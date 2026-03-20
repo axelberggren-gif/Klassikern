@@ -59,7 +59,7 @@ export async function logSession(params: {
       effort_rating: params.effortRating,
       note: params.note || null,
       ep_earned: ep,
-      is_bonus: !params.plannedSessionId,
+      is_bonus: params.plannedSessionId === null,
     })
     .select()
     .single();
