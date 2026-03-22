@@ -150,6 +150,7 @@ export async function getFeedReactions(
 
 /**
  * Batch-fetch comments for multiple feed items, ordered oldest first.
+ * Uses a two-step approach (comments + profiles) to avoid FK join issues.
  */
 async function getBatchFeedComments(
   feedItemIds: string[]
@@ -158,24 +159,33 @@ async function getBatchFeedComments(
 
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  const { data: comments, error } = await supabase
     .from('feed_comments')
-    .select('*, profiles(*)')
+    .select('*')
     .in('feed_item_id', feedItemIds)
     .order('created_at', { ascending: true });
 
-  if (error || !data) {
-    console.error('Error batch-fetching feed comments:', error);
+  if (error || !comments || comments.length === 0) {
+    if (error) console.error('Error batch-fetching feed comments:', error);
     return [];
   }
 
-  return data.map((item) => {
-    const { profiles, ...commentFields } = item as Record<string, unknown>;
-    return {
-      ...commentFields,
-      user: profiles as Profile,
-    } as FeedCommentWithUser;
-  });
+  // Fetch profiles for all comment authors
+  const userIds = [...new Set(comments.map((c) => c.user_id))];
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', userIds);
+
+  const profileMap = new Map<string, Profile>();
+  for (const p of (profiles || []) as Profile[]) {
+    profileMap.set(p.id, p);
+  }
+
+  return comments.map((c) => ({
+    ...c,
+    user: profileMap.get(c.user_id) as Profile,
+  })) as FeedCommentWithUser[];
 }
 
 /**
@@ -208,12 +218,13 @@ export async function getFeedComments(
 
 /**
  * Add a comment to a feed item. Text is truncated to 200 characters.
+ * Returns the raw comment row (without profile join) or null on failure.
  */
 export async function addFeedComment(
   feedItemId: string,
   userId: string,
   text: string
-): Promise<FeedCommentWithUser | null> {
+): Promise<{ id: string; feed_item_id: string; user_id: string; text: string; created_at: string } | null> {
   const supabase = createClient();
   const trimmedText = text.slice(0, 200);
 
@@ -224,7 +235,7 @@ export async function addFeedComment(
       user_id: userId,
       text: trimmedText,
     })
-    .select('*, profiles(*)')
+    .select('*')
     .single();
 
   if (error || !data) {
@@ -232,11 +243,7 @@ export async function addFeedComment(
     return null;
   }
 
-  const { profiles, ...commentFields } = data as Record<string, unknown>;
-  return {
-    ...commentFields,
-    user: profiles as Profile,
-  } as FeedCommentWithUser;
+  return data as { id: string; feed_item_id: string; user_id: string; text: string; created_at: string };
 }
 
 /**

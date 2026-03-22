@@ -398,18 +398,41 @@ export default function DashboardPage() {
 
   const handleAddComment = useCallback(
     async (feedItemId: string, text: string) => {
-      if (!user) return;
-      const comment = await addFeedComment(feedItemId, user.id, text);
-      if (comment) {
+      if (!user || !profile) return;
+      // Optimistically add to UI immediately
+      const optimisticId = crypto.randomUUID();
+      const optimisticComment = {
+        id: optimisticId,
+        feed_item_id: feedItemId,
+        user_id: user.id,
+        text: text.slice(0, 200),
+        created_at: new Date().toISOString(),
+        user: profile,
+      };
+      setFeed((prev) =>
+        prev.map((item) => {
+          if (item.id !== feedItemId) return item;
+          return { ...item, comments: [...(item.comments || []), optimisticComment] };
+        })
+      );
+      // Persist to DB in background
+      const result = await addFeedComment(feedItemId, user.id, text);
+      if (result) {
+        // Replace optimistic ID with real ID
         setFeed((prev) =>
           prev.map((item) => {
             if (item.id !== feedItemId) return item;
-            return { ...item, comments: [...(item.comments || []), comment] };
+            return {
+              ...item,
+              comments: item.comments?.map((c) =>
+                c.id === optimisticId ? { ...c, id: result.id } : c
+              ),
+            };
           })
         );
       }
     },
-    [user]
+    [user, profile]
   );
 
   const handleDeleteComment = useCallback(
