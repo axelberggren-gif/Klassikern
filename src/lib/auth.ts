@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '@/types/database';
+import { IS_TEST_MODE, TEST_USER_ID, TEST_PROFILE } from '@/lib/test-helpers';
 
 /**
  * Auth state returned by the useAuth hook.
@@ -35,6 +36,16 @@ export function useAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Test mode: return a mock user immediately so pages render without auth
+  if (IS_TEST_MODE) {
+    return {
+      user: { id: TEST_USER_ID } as User,
+      profile: TEST_PROFILE as unknown as Profile,
+      loading: false,
+      signOut: async () => { router.replace('/login'); },
+    };
+  }
 
   // Effect 1: Get initial user + listen for auth state changes.
   // No DB calls here — profile fetching happens in Effect 2.

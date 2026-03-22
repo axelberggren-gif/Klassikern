@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '🔄 Syncing with main...' && git fetch origin main 2>/dev/null && echo '✅ Ready. Remember: create a new branch from main for each task.'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Remember: run npm test after code changes'"
+          }
+        ]
+      }
+    ]
+  }
+}
