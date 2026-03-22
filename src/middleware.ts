@@ -28,6 +28,7 @@ async function updateSession(request: NextRequest) {
   // Allow public routes without authentication
   const isPublicRoute =
     pathname === '/login' ||
+    pathname === '/offline' ||
     pathname.startsWith('/auth/callback') ||
     pathname === '/api/strava/webhook' ||
     pathname === '/manifest.json' ||
