@@ -8,8 +8,17 @@ import { NextResponse, type NextRequest } from 'next/server';
  * Public routes (no auth required):
  *  - /login
  *  - Static assets & Next.js internals (_next, favicon, etc.)
+ *
+ * Test mode (NEXT_PUBLIC_TEST_MODE=true):
+ *  - Skips auth entirely so pages can be tested without credentials.
+ *  - Never enable in production.
  */
 export async function middleware(request: NextRequest) {
+  // Test mode: skip auth entirely so Claude/CI can verify page rendering
+  if (process.env.NEXT_PUBLIC_TEST_MODE === 'true') {
+    return NextResponse.next({ request });
+  }
+
   return await updateSession(request);
 }
 

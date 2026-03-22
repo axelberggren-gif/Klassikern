@@ -179,10 +179,55 @@ The project backlog is managed in Notion:
 ## Commands
 
 ```bash
-npm run dev      # Start dev server (port 3000)
-npm run build    # Production build (use to verify TypeScript)
-npm run lint     # ESLint
+npm run dev        # Start dev server (port 3000)
+npm run build      # Production build (use to verify TypeScript)
+npm run lint       # ESLint
+npm test           # Run unit tests (vitest)
+npm run test:watch # Run tests in watch mode
 ```
+
+## Testing
+
+### Unit Tests (Vitest)
+Tests live in `src/__tests__/`. Run with `npm test`. Tests cover pure logic modules:
+- `ep-calculator.test.ts` — EP calculation, waypoint indexing
+- `date-utils.test.ts` — Week/date calculations
+- `boss-engine.test.ts` — Boss damage, crits, scaling
+
+**Adding tests**: Create `*.test.ts` files in `src/__tests__/`. Use the mock Supabase client at `src/__tests__/mocks/supabase.ts` for store function tests.
+
+### Test Mode (Auth Bypass)
+When `NEXT_PUBLIC_TEST_MODE=true`, the middleware and `useAuth()` hook skip real Supabase auth and return a mock user. This lets Claude and CI verify that pages render without needing real credentials.
+
+```bash
+# Quick test: copy .env.test and start dev server
+cp .env.test .env.local && npm run dev
+```
+
+**NEVER deploy with `NEXT_PUBLIC_TEST_MODE=true`** — it disables all authentication.
+
+## Development Workflow
+
+### Branch Management
+- Each Claude session should start on a **fresh branch from `main`**.
+- The session-start hook auto-fetches `origin/main` to keep things current.
+- Branch naming: `claude/<feature-slug>-<session-id>`
+
+### Pre-Commit Checklist
+Before every commit, Claude MUST:
+1. Run `npm test` — all unit tests must pass
+2. Run `npx tsc --noEmit` — TypeScript must compile cleanly
+3. Run GitNexus impact analysis on all modified symbols: `gitnexus_impact({target: "symbolName", direction: "upstream"})`
+4. Run `gitnexus_detect_changes()` to verify only expected scope was affected
+5. If impact analysis returns HIGH or CRITICAL risk → warn user before proceeding
+
+### CI Pipeline
+GitHub Actions runs on every PR to `main`:
+- TypeScript type check
+- ESLint
+- Unit tests (vitest)
+
+All checks must pass before merging.
 
 ## Environment Variables
 
