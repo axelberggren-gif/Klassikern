@@ -9,6 +9,7 @@ import BadgeUnlockModal from '@/components/BadgeUnlockModal';
 import { SPORT_CONFIG, EFFORT_LABELS, ACTIVE_SPORT_TYPES } from '@/lib/sport-config';
 import { useAuth } from '@/lib/auth';
 import { logSession, getUserGroupId, getAllBadges, uploadSessionPhoto } from '@/lib/store';
+import { savePendingSession } from '@/lib/pwa';
 import { getCurrentWeekNumber, getPlanForWeek } from '@/lib/training-plan';
 import type { SportType, EffortRating, Session, Badge, PlannedSession } from '@/types/database';
 
@@ -52,6 +53,26 @@ export default function LogSessionPage() {
   async function handleSubmit() {
     if (!user || !profile || submitting) return;
     setSubmitting(true);
+
+    // Offline: save to IndexedDB for later sync
+    if (!navigator.onLine) {
+      await savePendingSession({
+        data: {
+          userId: user.id,
+          groupId,
+          sportType,
+          durationMinutes: duration,
+          distanceKm: distance ? parseFloat(distance) : null,
+          effortRating: effort,
+          note,
+          plannedSessionId: null,
+        },
+        createdAt: new Date().toISOString(),
+      });
+      setSubmitting(false);
+      router.push('/');
+      return;
+    }
 
     let photoUrl: string | null = null;
     if (photo) {

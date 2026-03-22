@@ -4,8 +4,8 @@
   "description": "Träna mot En Svensk Klassiker med vänner",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f9fafb",
-  "theme_color": "#f97316",
+  "background_color": "#0a0f1a",
+  "theme_color": "#10b981",
   "orientation": "portrait",
   "icons": [
     {
