@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Minus, Plus, ArrowLeft } from 'lucide-react';
+import { Minus, Plus, ArrowLeft, Camera, X } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import SessionReward from '@/components/SessionReward';
 import BadgeUnlockModal from '@/components/BadgeUnlockModal';
 import { SPORT_CONFIG, EFFORT_LABELS, ACTIVE_SPORT_TYPES } from '@/lib/sport-config';
 import { useAuth } from '@/lib/auth';
-import { logSession, getUserGroupId, getAllBadges } from '@/lib/store';
+import { logSession, getUserGroupId, getAllBadges, uploadSessionPhoto } from '@/lib/store';
 import { getCurrentWeekNumber, getPlanForWeek } from '@/lib/training-plan';
 import type { SportType, EffortRating, Session, Badge, PlannedSession } from '@/types/database';
 
@@ -26,6 +26,9 @@ export default function LogSessionPage() {
   const [currentBadge, setCurrentBadge] = useState<Badge | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const wk = getCurrentWeekNumber();
@@ -50,6 +53,11 @@ export default function LogSessionPage() {
     if (!user || !profile || submitting) return;
     setSubmitting(true);
 
+    let photoUrl: string | null = null;
+    if (photo) {
+      photoUrl = await uploadSessionPhoto(user.id, photo);
+    }
+
     const result = await logSession({
       userId: user.id,
       groupId,
@@ -60,6 +68,7 @@ export default function LogSessionPage() {
       effortRating: effort,
       note,
       plannedSessionId: null,
+      photoUrl,
     });
 
     setSubmitting(false);
@@ -270,6 +279,59 @@ export default function LogSessionPage() {
             rows={2}
             className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-slate-50 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 resize-none placeholder:text-slate-500"
           />
+        </div>
+
+        {/* Photo */}
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-slate-200">
+            Foto <span className="text-slate-400 font-normal">(valfritt)</span>
+          </label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0] || null;
+              setPhoto(file);
+              if (file) {
+                const url = URL.createObjectURL(file);
+                setPhotoPreview(url);
+              } else {
+                setPhotoPreview(null);
+              }
+            }}
+          />
+          {photoPreview ? (
+            <div className="relative">
+              <img
+                src={photoPreview}
+                alt="Forhandsvisning"
+                className="w-full h-48 object-cover rounded-xl border border-slate-700"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setPhoto(null);
+                  setPhotoPreview(null);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-slate-900/80 text-slate-200"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-600 bg-slate-900 py-6 text-sm text-slate-400 transition-colors hover:border-slate-500 hover:text-slate-300"
+            >
+              <Camera size={20} />
+              Lagg till foto
+            </button>
+          )}
         </div>
 
         {/* EP preview */}
