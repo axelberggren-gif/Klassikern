@@ -27,6 +27,30 @@ export interface LogSessionResult {
   newBadges: string[];
 }
 
+export async function uploadSessionPhoto(
+  userId: string,
+  file: File
+): Promise<string | null> {
+  const supabase = createClient();
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from('session-photos')
+    .upload(path, file, { contentType: file.type });
+
+  if (error) {
+    console.error('Error uploading photo:', error);
+    return null;
+  }
+
+  const { data: urlData } = supabase.storage
+    .from('session-photos')
+    .getPublicUrl(path);
+
+  return urlData.publicUrl;
+}
+
 export async function logSession(params: {
   userId: string;
   groupId: string | null;
@@ -37,6 +61,7 @@ export async function logSession(params: {
   effortRating: EffortRating;
   note: string;
   plannedSessionId: string | null;
+  photoUrl?: string | null;
 }): Promise<LogSessionResult | null> {
   const supabase = createClient();
 
@@ -60,6 +85,7 @@ export async function logSession(params: {
       note: params.note || null,
       ep_earned: ep,
       is_bonus: params.plannedSessionId === null,
+      photo_url: params.photoUrl || null,
     })
     .select()
     .single();
@@ -92,6 +118,7 @@ export async function logSession(params: {
         duration: params.durationMinutes,
         ep,
         note: params.note || null,
+        photo_url: params.photoUrl || null,
       },
     });
   }

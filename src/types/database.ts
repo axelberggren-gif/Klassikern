@@ -208,6 +208,7 @@ export interface Database {
           ep_earned: number;
           is_bonus: boolean;
           strava_activity_id: number | null;
+          photo_url: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -224,6 +225,7 @@ export interface Database {
           ep_earned?: number;
           is_bonus?: boolean;
           strava_activity_id?: number | null;
+          photo_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -240,6 +242,7 @@ export interface Database {
           ep_earned?: number;
           is_bonus?: boolean;
           strava_activity_id?: number | null;
+          photo_url?: string | null;
           updated_at?: string;
         };
         Relationships: [];

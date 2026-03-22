@@ -14,7 +14,7 @@ export {
   createGroup,
 } from './groups';
 
-export { getUserSessions, logSession } from './sessions';
+export { getUserSessions, logSession, uploadSessionPhoto } from './sessions';
 export type { LogSessionResult } from './sessions';
 
 export { getActivityFeed } from './feed';

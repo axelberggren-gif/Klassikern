@@ -119,6 +119,13 @@ export default function ActivityFeed({ items, maxItems = 5 }: ActivityFeedProps)
                   &quot;{String((item.event_data as Record<string, unknown>).note)}&quot;
                 </p>
               )}
+              {item.event_type === 'session_logged' && Boolean((item.event_data as Record<string, unknown>).photo_url) && (
+                <img
+                  src={String((item.event_data as Record<string, unknown>).photo_url)}
+                  alt="Traningsfoto"
+                  className="mt-2 w-full h-40 object-cover rounded-lg border border-slate-700"
+                />
+              )}
               <p className="mt-0.5 text-xs text-slate-400">
                 {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: sv })}
               </p>
