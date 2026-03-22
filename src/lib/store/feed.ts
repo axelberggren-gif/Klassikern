@@ -150,6 +150,7 @@ export async function getFeedReactions(
 
 /**
  * Batch-fetch comments for multiple feed items, ordered oldest first.
+ * Uses a two-step approach (comments + profiles) to avoid FK join issues.
  */
 async function getBatchFeedComments(
   feedItemIds: string[]
@@ -158,24 +159,33 @@ async function getBatchFeedComments(
 
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  const { data: comments, error } = await supabase
     .from('feed_comments')
-    .select('*, profiles(*)')
+    .select('*')
     .in('feed_item_id', feedItemIds)
     .order('created_at', { ascending: true });
 
-  if (error || !data) {
-    console.error('Error batch-fetching feed comments:', error);
+  if (error || !comments || comments.length === 0) {
+    if (error) console.error('Error batch-fetching feed comments:', error);
     return [];
   }
 
-  return data.map((item) => {
-    const { profiles, ...commentFields } = item as Record<string, unknown>;
-    return {
-      ...commentFields,
-      user: profiles as Profile,
-    } as FeedCommentWithUser;
-  });
+  // Fetch profiles for all comment authors
+  const userIds = [...new Set(comments.map((c) => c.user_id))];
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', userIds);
+
+  const profileMap = new Map<string, Profile>();
+  for (const p of (profiles || []) as Profile[]) {
+    profileMap.set(p.id, p);
+  }
+
+  return comments.map((c) => ({
+    ...c,
+    user: profileMap.get(c.user_id) as Profile,
+  })) as FeedCommentWithUser[];
 }
 
 /**
@@ -208,12 +218,13 @@ export async function getFeedComments(
 
 /**
  * Add a comment to a feed item. Text is truncated to 200 characters.
+ * Returns the raw comment row (without profile join) or null on failure.
  */
 export async function addFeedComment(
   feedItemId: string,
   userId: string,
   text: string
-): Promise<FeedCommentWithUser | null> {
+): Promise<{ id: string; feed_item_id: string; user_id: string; text: string; created_at: string } | null> {
   const supabase = createClient();
   const trimmedText = text.slice(0, 200);
 
@@ -224,7 +235,7 @@ export async function addFeedComment(
       user_id: userId,
       text: trimmedText,
     })
-    .select('*, profiles(*)')
+    .select('*')
     .single();
 
   if (error || !data) {
@@ -232,11 +243,7 @@ export async function addFeedComment(
     return null;
   }
 
-  const { profiles, ...commentFields } = data as Record<string, unknown>;
-  return {
-    ...commentFields,
-    user: profiles as Profile,
-  } as FeedCommentWithUser;
+  return data as { id: string; feed_item_id: string; user_id: string; text: string; created_at: string };
 }
 
 /**
@@ -294,26 +301,17 @@ export async function getActiveChallenges(
 
   const { data, error } = await supabase
     .from('call_out_challenges')
-    .select(
-      '*, challenger:profiles!call_out_challenges_challenger_id_fkey(*), challenged:profiles!call_out_challenges_challenged_id_fkey(*)'
-    )
+    .select('*')
     .eq('group_id', groupId)
     .eq('status', 'active')
     .order('created_at', { ascending: false });
 
-  if (error || !data) {
-    console.error('Error fetching active challenges:', error);
+  if (error || !data || data.length === 0) {
+    if (error) console.error('Error fetching active challenges:', error);
     return [];
   }
 
-  return data.map((item) => {
-    const { challenger, challenged, ...rest } = item as Record<string, unknown>;
-    return {
-      ...rest,
-      challenger: challenger as Profile,
-      challenged: challenged as Profile,
-    } as CallOutChallengeWithUsers;
-  });
+  return attachChallengeProfiles(supabase, data);
 }
 
 /**
@@ -329,6 +327,7 @@ export async function createCallOut(params: {
   const supabase = createClient();
   const { weekStart, weekEnd } = getWeekBounds();
 
+  // Insert challenge (simple select without profile joins)
   const { data, error } = await supabase
     .from('call_out_challenges')
     .insert({
@@ -340,9 +339,7 @@ export async function createCallOut(params: {
       week_start: weekStart,
       week_end: weekEnd,
     })
-    .select(
-      '*, challenger:profiles!call_out_challenges_challenger_id_fkey(*), challenged:profiles!call_out_challenges_challenged_id_fkey(*)'
-    )
+    .select('*')
     .single();
 
   if (error || !data) {
@@ -350,24 +347,41 @@ export async function createCallOut(params: {
     return null;
   }
 
-  // Post activity feed event
-  await supabase.from('activity_feed').insert({
+  // Fetch profiles for both participants
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', [params.challengerId, params.challengedId]);
+
+  const profileMap = new Map<string, Profile>();
+  for (const p of (profiles || []) as Profile[]) {
+    profileMap.set(p.id, p);
+  }
+
+  const challengerProfile = profileMap.get(params.challengerId);
+  const challengedProfile = profileMap.get(params.challengedId);
+
+  // Post activity feed event (best-effort, don't block on failure)
+  supabase.from('activity_feed').insert({
     group_id: params.groupId,
     user_id: params.challengerId,
     event_type: 'call_out_created' as const,
     event_data: {
       challenge_id: data.id,
       challenged_id: params.challengedId,
+      challenger_name: challengerProfile?.display_name ?? 'Okänd',
+      challenged_name: challengedProfile?.display_name ?? 'Okänd',
       sport_type: params.sportType ?? null,
       metric: params.metric,
     },
+  }).then(({ error: feedError }) => {
+    if (feedError) console.error('Error posting call-out feed event:', feedError);
   });
 
-  const { challenger, challenged, ...rest } = data as Record<string, unknown>;
   return {
-    ...rest,
-    challenger: challenger as Profile,
-    challenged: challenged as Profile,
+    ...data,
+    challenger: challengerProfile as Profile,
+    challenged: challengedProfile as Profile,
   } as CallOutChallengeWithUsers;
 }
 
@@ -381,25 +395,46 @@ export async function getChallengeHistory(
 
   const { data, error } = await supabase
     .from('call_out_challenges')
-    .select(
-      '*, challenger:profiles!call_out_challenges_challenger_id_fkey(*), challenged:profiles!call_out_challenges_challenged_id_fkey(*)'
-    )
+    .select('*')
     .eq('group_id', groupId)
     .eq('status', 'completed')
     .order('updated_at', { ascending: false })
     .limit(20);
 
-  if (error || !data) {
-    console.error('Error fetching challenge history:', error);
+  if (error || !data || data.length === 0) {
+    if (error) console.error('Error fetching challenge history:', error);
     return [];
   }
 
-  return data.map((item) => {
-    const { challenger, challenged, ...rest } = item as Record<string, unknown>;
-    return {
-      ...rest,
-      challenger: challenger as Profile,
-      challenged: challenged as Profile,
-    } as CallOutChallengeWithUsers;
-  });
+  return attachChallengeProfiles(supabase, data);
+}
+
+/**
+ * Helper: attach challenger/challenged profiles to challenge rows.
+ */
+async function attachChallengeProfiles(
+  supabase: ReturnType<typeof createClient>,
+  challenges: Record<string, unknown>[]
+): Promise<CallOutChallengeWithUsers[]> {
+  const userIds = new Set<string>();
+  for (const c of challenges) {
+    userIds.add(c.challenger_id as string);
+    userIds.add(c.challenged_id as string);
+  }
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', [...userIds]);
+
+  const profileMap = new Map<string, Profile>();
+  for (const p of (profiles || []) as Profile[]) {
+    profileMap.set(p.id, p);
+  }
+
+  return challenges.map((c) => ({
+    ...c,
+    challenger: profileMap.get(c.challenger_id as string) as Profile,
+    challenged: profileMap.get(c.challenged_id as string) as Profile,
+  })) as CallOutChallengeWithUsers[];
 }
