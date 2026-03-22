@@ -17,9 +17,7 @@ import type {
 // Types
 // ---------------------------------------------------------------------------
 
-export interface EnhancedFeedItem extends ActivityFeedItemWithUser {
-  comments?: FeedCommentWithUser[];
-}
+export type EnhancedFeedItem = ActivityFeedItemWithUser;
 
 export interface EnhancedFeedProps {
   items: EnhancedFeedItem[];
@@ -406,7 +404,7 @@ function CommentsSection({
               onChange={(e) => setText(e.target.value.slice(0, COMMENT_MAX_LENGTH))}
               onKeyDown={handleKeyDown}
               placeholder="Skriv en kommentar..."
-              className="flex-1 min-w-0 rounded-xl bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 outline-none focus:border-slate-600 transition-colors"
+              className="flex-1 min-w-0 rounded-xl bg-slate-800 border border-slate-700 px-3 py-1.5 text-base sm:text-xs text-slate-200 placeholder-slate-500 outline-none focus:border-slate-600 transition-colors"
               maxLength={COMMENT_MAX_LENGTH}
             />
             <button
