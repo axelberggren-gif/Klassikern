@@ -816,6 +816,7 @@ export interface UserBadgeWithBadge extends UserBadge {
 export interface ActivityFeedItemWithUser extends ActivityFeedItem {
   user: Profile;
   reactions?: FeedReaction[];
+  comments?: FeedCommentWithUser[];
 }
 
 export type GroupMemberWithProfile = {

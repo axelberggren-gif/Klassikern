@@ -38,18 +38,31 @@ export async function getActivityFeed(
     } as ActivityFeedItemWithUser;
   });
 
-  // Batch-fetch reactions for all feed items
+  // Batch-fetch reactions and comments for all feed items
   const feedItemIds = feedItems.map((item) => item.id);
   if (feedItemIds.length > 0) {
-    const reactions = await getFeedReactions(feedItemIds);
+    const [reactions, comments] = await Promise.all([
+      getFeedReactions(feedItemIds),
+      getBatchFeedComments(feedItemIds),
+    ]);
+
     const reactionsByFeedItem = new Map<string, FeedReaction[]>();
     for (const reaction of reactions) {
       const existing = reactionsByFeedItem.get(reaction.feed_item_id) ?? [];
       existing.push(reaction);
       reactionsByFeedItem.set(reaction.feed_item_id, existing);
     }
+
+    const commentsByFeedItem = new Map<string, FeedCommentWithUser[]>();
+    for (const comment of comments) {
+      const existing = commentsByFeedItem.get(comment.feed_item_id) ?? [];
+      existing.push(comment);
+      commentsByFeedItem.set(comment.feed_item_id, existing);
+    }
+
     for (const item of feedItems) {
       item.reactions = reactionsByFeedItem.get(item.id) ?? [];
+      item.comments = commentsByFeedItem.get(item.id) ?? [];
     }
   }
 
@@ -134,6 +147,36 @@ export async function getFeedReactions(
 // ---------------------------------------------------------------------------
 // Comments
 // ---------------------------------------------------------------------------
+
+/**
+ * Batch-fetch comments for multiple feed items, ordered oldest first.
+ */
+async function getBatchFeedComments(
+  feedItemIds: string[]
+): Promise<FeedCommentWithUser[]> {
+  if (feedItemIds.length === 0) return [];
+
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from('feed_comments')
+    .select('*, profiles(*)')
+    .in('feed_item_id', feedItemIds)
+    .order('created_at', { ascending: true });
+
+  if (error || !data) {
+    console.error('Error batch-fetching feed comments:', error);
+    return [];
+  }
+
+  return data.map((item) => {
+    const { profiles, ...commentFields } = item as Record<string, unknown>;
+    return {
+      ...commentFields,
+      user: profiles as Profile,
+    } as FeedCommentWithUser;
+  });
+}
 
 /**
  * Get comments for a feed item, including user profiles, ordered oldest first.

@@ -32,7 +32,7 @@ interface CallOutChallengeProps {
 
 const METRIC_LABELS: Record<string, string> = {
   ep: 'EP',
-  time: 'Minuter',
+  duration: 'Minuter',
   sessions: 'Pass',
 };
 
