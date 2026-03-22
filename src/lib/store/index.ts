@@ -17,7 +17,17 @@ export {
 export { getUserSessions, logSession, uploadSessionPhoto } from './sessions';
 export type { LogSessionResult } from './sessions';
 
-export { getActivityFeed } from './feed';
+export {
+  getActivityFeed,
+  toggleReaction,
+  getFeedReactions,
+  getFeedComments,
+  addFeedComment,
+  deleteFeedComment,
+  getActiveChallenges,
+  createCallOut,
+  getChallengeHistory,
+} from './feed';
 
 export { getUserStats, getWeekCompletionStats } from './stats';
 
@@ -41,3 +51,18 @@ export {
   getEncounterAttacks,
 } from './boss';
 export type { WeeklyEPInfo, AttackBossWeeklyResult } from './boss';
+
+export {
+  getWeeklyEPByUser,
+  getWeeklyWinners,
+  getSportLeaderboard,
+  getPowerRankings,
+  getHeadToHeadData,
+} from './leaderboard';
+export type {
+  WeeklyUserEP,
+  WeeklyWinnerResult,
+  SportLeaderboardEntry,
+  HeadToHeadUser,
+  HeadToHeadData,
+} from './leaderboard';
