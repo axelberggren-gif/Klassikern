@@ -37,19 +37,10 @@ export function useAuth(): AuthState {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Test mode: return a mock user immediately so pages render without auth
-  if (IS_TEST_MODE) {
-    return {
-      user: { id: TEST_USER_ID } as User,
-      profile: TEST_PROFILE as unknown as Profile,
-      loading: false,
-      signOut: async () => { router.replace('/login'); },
-    };
-  }
-
   // Effect 1: Get initial user + listen for auth state changes.
   // No DB calls here — profile fetching happens in Effect 2.
   useEffect(() => {
+    if (IS_TEST_MODE) return;
     const supabase = createClient();
     let cancelled = false;
 
@@ -118,6 +109,7 @@ export function useAuth(): AuthState {
 
   // Effect 2: Fetch profile when user changes (runs OUTSIDE onAuthStateChange).
   useEffect(() => {
+    if (IS_TEST_MODE) return;
     if (!user) {
       setProfile(null);
       return;
@@ -159,6 +151,16 @@ export function useAuth(): AuthState {
     setProfile(null);
     router.replace('/login');
   }, [router]);
+
+  // Test mode: return mock user (after all hooks to satisfy rules-of-hooks)
+  if (IS_TEST_MODE) {
+    return {
+      user: { id: TEST_USER_ID } as User,
+      profile: TEST_PROFILE as unknown as Profile,
+      loading: false,
+      signOut: async () => { router.replace('/login'); },
+    };
+  }
 
   return { user, profile, loading, signOut };
 }
