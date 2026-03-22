@@ -1,5 +1,13 @@
 import { createClient } from '@/lib/supabase';
-import type { Profile, ActivityFeedItemWithUser } from '@/types/database';
+import type {
+  Profile,
+  FeedReaction,
+  FeedCommentWithUser,
+  CallOutChallengeWithUsers,
+  ActivityFeedItemWithUser,
+  SportType,
+  ChallengeMetric,
+} from '@/types/database';
 
 // ---------------------------------------------------------------------------
 // Activity feed
@@ -22,11 +30,333 @@ export async function getActivityFeed(
     return [];
   }
 
-  return data.map((item) => {
+  const feedItems = data.map((item) => {
     const { profiles, ...feedFields } = item as Record<string, unknown>;
     return {
       ...feedFields,
       user: profiles as Profile,
     } as ActivityFeedItemWithUser;
+  });
+
+  // Batch-fetch reactions for all feed items
+  const feedItemIds = feedItems.map((item) => item.id);
+  if (feedItemIds.length > 0) {
+    const reactions = await getFeedReactions(feedItemIds);
+    const reactionsByFeedItem = new Map<string, FeedReaction[]>();
+    for (const reaction of reactions) {
+      const existing = reactionsByFeedItem.get(reaction.feed_item_id) ?? [];
+      existing.push(reaction);
+      reactionsByFeedItem.set(reaction.feed_item_id, existing);
+    }
+    for (const item of feedItems) {
+      item.reactions = reactionsByFeedItem.get(item.id) ?? [];
+    }
+  }
+
+  return feedItems;
+}
+
+// ---------------------------------------------------------------------------
+// Reactions
+// ---------------------------------------------------------------------------
+
+/**
+ * Toggle a reaction on a feed item. If the user already reacted with the same
+ * emoji, the reaction is removed. Otherwise it is upserted.
+ * Returns `true` if the reaction now exists, `false` if it was removed.
+ */
+export async function toggleReaction(
+  feedItemId: string,
+  userId: string,
+  emoji: string
+): Promise<boolean> {
+  const supabase = createClient();
+
+  // Check for existing reaction with this emoji
+  const { data: existing } = await supabase
+    .from('feed_reactions')
+    .select('id')
+    .eq('feed_item_id', feedItemId)
+    .eq('user_id', userId)
+    .eq('emoji', emoji)
+    .maybeSingle();
+
+  if (existing) {
+    // Remove existing reaction
+    const { error } = await supabase
+      .from('feed_reactions')
+      .delete()
+      .eq('id', existing.id);
+
+    if (error) {
+      console.error('Error removing reaction:', error);
+    }
+    return false;
+  }
+
+  // Insert new reaction
+  const { error } = await supabase.from('feed_reactions').insert({
+    feed_item_id: feedItemId,
+    user_id: userId,
+    emoji,
+  });
+
+  if (error) {
+    console.error('Error adding reaction:', error);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Batch-fetch reactions for multiple feed items.
+ */
+export async function getFeedReactions(
+  feedItemIds: string[]
+): Promise<FeedReaction[]> {
+  if (feedItemIds.length === 0) return [];
+
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from('feed_reactions')
+    .select('*')
+    .in('feed_item_id', feedItemIds);
+
+  if (error || !data) {
+    console.error('Error fetching feed reactions:', error);
+    return [];
+  }
+
+  return data as FeedReaction[];
+}
+
+// ---------------------------------------------------------------------------
+// Comments
+// ---------------------------------------------------------------------------
+
+/**
+ * Get comments for a feed item, including user profiles, ordered oldest first.
+ */
+export async function getFeedComments(
+  feedItemId: string
+): Promise<FeedCommentWithUser[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from('feed_comments')
+    .select('*, profiles(*)')
+    .eq('feed_item_id', feedItemId)
+    .order('created_at', { ascending: true });
+
+  if (error || !data) {
+    console.error('Error fetching feed comments:', error);
+    return [];
+  }
+
+  return data.map((item) => {
+    const { profiles, ...commentFields } = item as Record<string, unknown>;
+    return {
+      ...commentFields,
+      user: profiles as Profile,
+    } as FeedCommentWithUser;
+  });
+}
+
+/**
+ * Add a comment to a feed item. Text is truncated to 200 characters.
+ */
+export async function addFeedComment(
+  feedItemId: string,
+  userId: string,
+  text: string
+): Promise<FeedCommentWithUser | null> {
+  const supabase = createClient();
+  const trimmedText = text.slice(0, 200);
+
+  const { data, error } = await supabase
+    .from('feed_comments')
+    .insert({
+      feed_item_id: feedItemId,
+      user_id: userId,
+      text: trimmedText,
+    })
+    .select('*, profiles(*)')
+    .single();
+
+  if (error || !data) {
+    console.error('Error adding feed comment:', error);
+    return null;
+  }
+
+  const { profiles, ...commentFields } = data as Record<string, unknown>;
+  return {
+    ...commentFields,
+    user: profiles as Profile,
+  } as FeedCommentWithUser;
+}
+
+/**
+ * Delete a comment by ID.
+ */
+export async function deleteFeedComment(commentId: string): Promise<boolean> {
+  const supabase = createClient();
+
+  const { error } = await supabase
+    .from('feed_comments')
+    .delete()
+    .eq('id', commentId);
+
+  if (error) {
+    console.error('Error deleting feed comment:', error);
+    return false;
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Call-out challenges
+// ---------------------------------------------------------------------------
+
+/**
+ * Get the Monday 00:00 and Sunday 23:59:59 of the current week (ISO weeks,
+ * Monday-based).
+ */
+function getWeekBounds(): { weekStart: string; weekEnd: string } {
+  const now = new Date();
+  const day = now.getDay(); // 0 = Sun, 1 = Mon, ...
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+
+  return {
+    weekStart: monday.toISOString(),
+    weekEnd: sunday.toISOString(),
+  };
+}
+
+/**
+ * Get active (current-week) call-out challenges for a group, with user profiles.
+ */
+export async function getActiveChallenges(
+  groupId: string
+): Promise<CallOutChallengeWithUsers[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from('call_out_challenges')
+    .select(
+      '*, challenger:profiles!call_out_challenges_challenger_id_fkey(*), challenged:profiles!call_out_challenges_challenged_id_fkey(*)'
+    )
+    .eq('group_id', groupId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
+
+  if (error || !data) {
+    console.error('Error fetching active challenges:', error);
+    return [];
+  }
+
+  return data.map((item) => {
+    const { challenger, challenged, ...rest } = item as Record<string, unknown>;
+    return {
+      ...rest,
+      challenger: challenger as Profile,
+      challenged: challenged as Profile,
+    } as CallOutChallengeWithUsers;
+  });
+}
+
+/**
+ * Create a new call-out challenge and post a feed event.
+ */
+export async function createCallOut(params: {
+  groupId: string;
+  challengerId: string;
+  challengedId: string;
+  sportType?: SportType | null;
+  metric: ChallengeMetric;
+}): Promise<CallOutChallengeWithUsers | null> {
+  const supabase = createClient();
+  const { weekStart, weekEnd } = getWeekBounds();
+
+  const { data, error } = await supabase
+    .from('call_out_challenges')
+    .insert({
+      group_id: params.groupId,
+      challenger_id: params.challengerId,
+      challenged_id: params.challengedId,
+      sport_type: params.sportType ?? null,
+      metric: params.metric,
+      week_start: weekStart,
+      week_end: weekEnd,
+    })
+    .select(
+      '*, challenger:profiles!call_out_challenges_challenger_id_fkey(*), challenged:profiles!call_out_challenges_challenged_id_fkey(*)'
+    )
+    .single();
+
+  if (error || !data) {
+    console.error('Error creating call-out challenge:', error);
+    return null;
+  }
+
+  // Post activity feed event
+  await supabase.from('activity_feed').insert({
+    group_id: params.groupId,
+    user_id: params.challengerId,
+    event_type: 'call_out_created' as const,
+    event_data: {
+      challenge_id: data.id,
+      challenged_id: params.challengedId,
+      sport_type: params.sportType ?? null,
+      metric: params.metric,
+    },
+  });
+
+  const { challenger, challenged, ...rest } = data as Record<string, unknown>;
+  return {
+    ...rest,
+    challenger: challenger as Profile,
+    challenged: challenged as Profile,
+  } as CallOutChallengeWithUsers;
+}
+
+/**
+ * Get completed challenges for a group, most recent first.
+ */
+export async function getChallengeHistory(
+  groupId: string
+): Promise<CallOutChallengeWithUsers[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from('call_out_challenges')
+    .select(
+      '*, challenger:profiles!call_out_challenges_challenger_id_fkey(*), challenged:profiles!call_out_challenges_challenged_id_fkey(*)'
+    )
+    .eq('group_id', groupId)
+    .eq('status', 'completed')
+    .order('updated_at', { ascending: false })
+    .limit(20);
+
+  if (error || !data) {
+    console.error('Error fetching challenge history:', error);
+    return [];
+  }
+
+  return data.map((item) => {
+    const { challenger, challenged, ...rest } = item as Record<string, unknown>;
+    return {
+      ...rest,
+      challenger: challenger as Profile,
+      challenged: challenged as Profile,
+    } as CallOutChallengeWithUsers;
   });
 }

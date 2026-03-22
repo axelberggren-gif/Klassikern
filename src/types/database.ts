@@ -24,7 +24,12 @@ export type FeedEventType =
   | 'boss_attacked'
   | 'boss_defeated'
   | 'boss_failed'
-  | 'boss_critical_hit';
+  | 'boss_critical_hit'
+  | 'call_out_created'
+  | 'call_out_won';
+
+export type ChallengeMetric = 'ep' | 'duration' | 'sessions';
+export type ChallengeStatus = 'active' | 'completed';
 export type BossEncounterStatus = 'active' | 'defeated' | 'failed' | 'upcoming';
 
 // Crit condition types for smart critical hit system
@@ -597,6 +602,79 @@ export interface Database {
         };
         Relationships: [];
       };
+      feed_comments: {
+        Row: {
+          id: string;
+          feed_item_id: string;
+          user_id: string;
+          text: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          feed_item_id: string;
+          user_id: string;
+          text: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          feed_item_id?: string;
+          user_id?: string;
+          text?: string;
+        };
+        Relationships: [];
+      };
+      call_out_challenges: {
+        Row: {
+          id: string;
+          group_id: string;
+          challenger_id: string;
+          challenged_id: string;
+          sport_type: SportType | null;
+          metric: ChallengeMetric;
+          challenger_value: number;
+          challenged_value: number;
+          status: ChallengeStatus;
+          week_start: string;
+          week_end: string;
+          winner_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          group_id: string;
+          challenger_id: string;
+          challenged_id: string;
+          sport_type?: SportType | null;
+          metric?: ChallengeMetric;
+          challenger_value?: number;
+          challenged_value?: number;
+          status?: ChallengeStatus;
+          week_start: string;
+          week_end: string;
+          winner_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          group_id?: string;
+          challenger_id?: string;
+          challenged_id?: string;
+          sport_type?: SportType | null;
+          metric?: ChallengeMetric;
+          challenger_value?: number;
+          challenged_value?: number;
+          status?: ChallengeStatus;
+          week_start?: string;
+          week_end?: string;
+          winner_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       strava_connections: {
         Row: {
           id: string;
@@ -680,6 +758,8 @@ export type ActivityFeedItem = Database['public']['Tables']['activity_feed']['Ro
 export type FeedReaction = Database['public']['Tables']['feed_reactions']['Row'];
 export type WeeklyChallenge = Database['public']['Tables']['weekly_challenges']['Row'];
 export type ExpeditionWaypoint = Database['public']['Tables']['expedition_waypoints']['Row'];
+export type FeedComment = Database['public']['Tables']['feed_comments']['Row'];
+export type CallOutChallenge = Database['public']['Tables']['call_out_challenges']['Row'];
 export type StravaConnection = Database['public']['Tables']['strava_connections']['Row'];
 export type BossDefinition = Database['public']['Tables']['boss_definitions']['Row'];
 export type BossEncounter = Database['public']['Tables']['boss_encounters']['Row'];
@@ -708,6 +788,8 @@ export type SessionUpdate = Database['public']['Tables']['sessions']['Update'];
 export type PlannedSessionInsert = Database['public']['Tables']['planned_sessions']['Insert'];
 export type ActivityFeedInsert = Database['public']['Tables']['activity_feed']['Insert'];
 export type FeedReactionInsert = Database['public']['Tables']['feed_reactions']['Insert'];
+export type FeedCommentInsert = Database['public']['Tables']['feed_comments']['Insert'];
+export type CallOutChallengeInsert = Database['public']['Tables']['call_out_challenges']['Insert'];
 export type UserBadgeInsert = Database['public']['Tables']['user_badges']['Insert'];
 export type StravaConnectionInsert = Database['public']['Tables']['strava_connections']['Insert'];
 export type StravaConnectionUpdate = Database['public']['Tables']['strava_connections']['Update'];
@@ -761,4 +843,36 @@ export interface BossTrophyWithBoss extends BossTrophy {
 
 export interface BossAttackWithUser extends BossAttack {
   user: Profile;
+}
+
+export interface FeedCommentWithUser extends FeedComment {
+  user: Profile;
+}
+
+export interface CallOutChallengeWithUsers extends CallOutChallenge {
+  challenger: Profile;
+  challenged: Profile;
+}
+
+// Weekly leaderboard winner record (computed, not stored)
+export interface WeeklyWinner {
+  weekNumber: number;
+  weekStart: string;
+  userId: string;
+  displayName: string;
+  value: number;
+  metric: string;
+}
+
+// Power ranking entry (computed)
+export interface PowerRanking {
+  userId: string;
+  displayName: string;
+  score: number;
+  epScore: number;
+  streakScore: number;
+  damageScore: number;
+  consistencyScore: number;
+  previousRank: number | null;
+  currentRank: number;
 }
