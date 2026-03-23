@@ -29,6 +29,7 @@ async function updateSession(request: NextRequest) {
   const isPublicRoute =
     pathname === '/login' ||
     pathname === '/offline' ||
+    pathname === '/reset-password' ||
     pathname.startsWith('/auth/callback') ||
     pathname === '/api/strava/webhook' ||
     pathname === '/manifest.json' ||
