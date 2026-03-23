@@ -43,6 +43,30 @@ export type CritCondition =
   | { type: 'group_sync'; min_same_day: number; description: string };
 export type GroupMemberRole = 'owner' | 'admin' | 'member';
 
+// All notification types that can be toggled on/off
+export type NotificationType =
+  | 'session_logged'
+  | 'streak_milestone'
+  | 'streak_at_risk'
+  | 'streak_lost'
+  | 'boss_defeated'
+  | 'boss_killing_blow'
+  | 'boss_new'
+  | 'boss_weakness_hit'
+  | 'boss_low_hp'
+  | 'badge_unlocked'
+  | 'boss_trophy_earned'
+  | 'group_member_joined'
+  | 'group_member_left'
+  | 'teammate_session'
+  | 'leaderboard_overtaken'
+  | 'race_milestone'
+  | 'strava_sync_complete'
+  | 'strava_sync_failed'
+  | 'goal_updated';
+
+export type NotificationPreferences = Record<NotificationType, boolean>;
+
 // ---------------------------------------------------------------------------
 // Database interface (Supabase generated types pattern)
 // ---------------------------------------------------------------------------
@@ -63,6 +87,7 @@ export interface Database {
           current_streak: number;
           longest_streak: number;
           streak_freezes_remaining: number;
+          notification_preferences: NotificationPreferences;
           created_at: string;
           updated_at: string;
         };
@@ -78,6 +103,7 @@ export interface Database {
           current_streak?: number;
           longest_streak?: number;
           streak_freezes_remaining?: number;
+          notification_preferences?: NotificationPreferences;
           created_at?: string;
           updated_at?: string;
         };
@@ -93,6 +119,7 @@ export interface Database {
           current_streak?: number;
           longest_streak?: number;
           streak_freezes_remaining?: number;
+          notification_preferences?: NotificationPreferences;
           updated_at?: string;
         };
         Relationships: [];

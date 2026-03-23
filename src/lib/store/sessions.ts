@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase';
 import { calculateEP } from '../ep-calculator';
 import { checkAndAwardBadges } from '../badge-checker';
-import type { Session, Profile, SportType, EffortRating } from '@/types/database';
+import { notify } from '../notifications';
+import { SPORT_CONFIG } from '../sport-config';
+import type { Session, Profile, SportType, EffortRating, NotificationPreferences } from '@/types/database';
 
 // ---------------------------------------------------------------------------
 // Sessions
@@ -124,6 +126,47 @@ export async function logSession(params: {
   }
 
   const newBadges = await checkAndAwardBadges(params.userId);
+
+  // --- Notifications ---
+  const prefs = params.currentProfile.notification_preferences;
+  const sportLabel = SPORT_CONFIG[params.sportType]?.label ?? params.sportType;
+
+  // Session logged
+  notify(
+    'session_logged',
+    prefs,
+    `${sportLabel} loggat!`,
+    `${params.durationMinutes} min — du fick ${ep} EP`,
+    'session-logged',
+    { url: '/' }
+  );
+
+  // Streak milestones
+  const newStreak2 = params.currentProfile.current_streak + 1;
+  if ([3, 5, 7, 10, 14, 21, 30, 50, 100].includes(newStreak2)) {
+    notify(
+      'streak_milestone',
+      prefs,
+      `${newStreak2} dagar i rad!`,
+      newStreak2 >= 7
+        ? `Otroligt! Din streak-bonus ar nu 1.3x`
+        : `Bra jobbat! Hog streak = mer EP`,
+      'streak-milestone',
+      { url: '/profile' }
+    );
+  }
+
+  // Badge notifications
+  for (const badgeName of newBadges) {
+    notify(
+      'badge_unlocked',
+      prefs,
+      'Ny badge!',
+      badgeName,
+      `badge-${badgeName}`,
+      { url: '/profile' }
+    );
+  }
 
   return { session, newBadges };
 }

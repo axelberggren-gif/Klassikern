@@ -17,11 +17,14 @@ import {
   Palette,
   LogOut,
   Lock,
+  ChevronRight,
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import BadgeUnlockModal, { getBadgeIcon } from '@/components/BadgeUnlockModal';
+import NotificationSettings from '@/components/NotificationSettings';
 import StravaConnect from '@/components/StravaConnect';
 import { useAuth } from '@/lib/auth';
+import { getPermissionState, notify } from '@/lib/notifications';
 import { checkAndAwardBadges } from '@/lib/badge-checker';
 import { updateCurrentUser, getUserBadges, getAllBadges, getUserTrophies, getAllBossDefinitions } from '@/lib/store';
 import type { Badge, UserBadgeWithBadge, BossDefinition, BossTrophyWithBoss } from '@/types/database';
@@ -186,6 +189,7 @@ function ProfilePageInner() {
   const [allBossDefs, setAllBossDefs] = useState<BossDefinition[]>([]);
   const [trophies, setTrophies] = useState<BossTrophyWithBoss[]>([]);
   const [pendingBadges, setPendingBadges] = useState<Badge[]>([]);
+  const [showNotifSettings, setShowNotifSettings] = useState(false);
   const stravaCheckedRef = useRef(false);
 
   useEffect(() => {
@@ -249,6 +253,26 @@ function ProfilePageInner() {
     const parsed =
       field === 'display_name' ? value : Math.max(1, parseInt(value) || 1);
     await updateCurrentUser(user.id, { [field]: parsed });
+
+    // Notify on goal changes
+    if (field !== 'display_name' && profile) {
+      const goalLabels: Record<string, string> = {
+        goal_vr_hours: 'Vatternrundan',
+        goal_vansbro_minutes: 'Vansbrosimningen',
+        goal_lidingo_hours: 'Lidingoloppet',
+      };
+      const label = goalLabels[field];
+      if (label) {
+        notify(
+          'goal_updated',
+          profile.notification_preferences,
+          'Mal uppdaterat',
+          `${label}: ${parsed}${field.includes('hours') ? ' timmar' : ' minuter'}`,
+          'goal-updated',
+          { url: '/profile' }
+        );
+      }
+    }
   }
 
   return (
@@ -521,16 +545,36 @@ function ProfilePageInner() {
           <StravaConnect userId={user.id} onBadgesEarned={handleBadgesEarned} />
         )}
 
-        {/* Settings card */}
-        <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
-          <h3 className="text-sm font-semibold text-slate-200 mb-2">
-            Installningar
-          </h3>
-          <div className="divide-y divide-slate-700">
-            <PlaceholderRow icon={Bell} label="Notifikationer" />
-            <PlaceholderRow icon={Palette} label="Tema" />
+        {/* Settings card / Notification settings */}
+        {showNotifSettings ? (
+          <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
+            <NotificationSettings onBack={() => setShowNotifSettings(false)} />
           </div>
-        </div>
+        ) : (
+          <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
+            <h3 className="text-sm font-semibold text-slate-200 mb-2">
+              Installningar
+            </h3>
+            <div className="divide-y divide-slate-700">
+              <button
+                onClick={() => setShowNotifSettings(true)}
+                className="flex w-full items-center gap-3 py-3 text-left"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800">
+                  <Bell size={18} className={getPermissionState() === 'granted' ? 'text-emerald-400' : 'text-slate-400'} />
+                </div>
+                <span className="flex-1 text-sm text-slate-200">Notifikationer</span>
+                {getPermissionState() === 'granted' && (
+                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+                    Aktiva
+                  </span>
+                )}
+                <ChevronRight size={16} className="text-slate-500" />
+              </button>
+              <PlaceholderRow icon={Palette} label="Tema" />
+            </div>
+          </div>
+        )}
 
         {/* Sign out */}
         <button

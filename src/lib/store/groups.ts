@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase';
-import type { Profile, GroupDetails, GroupMemberWithProfile } from '@/types/database';
+import { notify } from '../notifications';
+import type { Profile, GroupDetails, GroupMemberWithProfile, NotificationPreferences } from '@/types/database';
 
 // ---------------------------------------------------------------------------
 // Group members

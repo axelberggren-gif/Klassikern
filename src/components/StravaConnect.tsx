@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, RefreshCw, Unlink, ExternalLink, AlertTriangle } from 'lucide-react';
-import { getStravaConnection, disconnectStrava } from '@/lib/store';
+import { getStravaConnection, disconnectStrava, getNotificationPreferences } from '@/lib/store';
 import { checkAndAwardBadges } from '@/lib/badge-checker';
+import { notify } from '@/lib/notifications';
 import type { StravaConnection } from '@/types/database';
 
 interface StravaConnectProps {
@@ -48,8 +49,30 @@ export default function StravaConnect({ userId, onBadgesEarned }: StravaConnectP
         if (data.scope_limited) {
           loadConnection();
         }
+        // Strava sync notification
+        const prefs = await getNotificationPreferences(userId);
+        if (data.imported > 0) {
+          notify(
+            'strava_sync_complete',
+            prefs,
+            'Strava synkad!',
+            `${data.imported} aktivitet${data.imported !== 1 ? 'er' : ''} importerade — ${data.total_ep_earned} EP`,
+            'strava-sync',
+            { url: '/profile' }
+          );
+        }
       } else {
         setSyncResult(data.error || 'Synkning misslyckades');
+        // Strava sync failure notification
+        const prefs = await getNotificationPreferences(userId);
+        notify(
+          'strava_sync_failed',
+          prefs,
+          'Strava-synk misslyckades',
+          data.error || 'Forsok igen senare',
+          'strava-sync-fail',
+          { url: '/profile' }
+        );
       }
     } catch {
       setSyncResult('Synkning misslyckades');

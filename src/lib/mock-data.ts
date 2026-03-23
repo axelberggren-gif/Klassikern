@@ -1,4 +1,5 @@
 import type { User, Session, ActivityFeedItemWithUser } from '@/types/database';
+import { DEFAULT_NOTIFICATION_PREFERENCES } from '@/lib/notifications';
 
 // Mock users for the group
 export const MOCK_USERS: User[] = [
@@ -15,6 +16,7 @@ export const MOCK_USERS: User[] = [
     current_streak: 0,
     longest_streak: 0,
     streak_freezes_remaining: 1,
+    notification_preferences: DEFAULT_NOTIFICATION_PREFERENCES,
     created_at: '2026-02-28T00:00:00Z',
     updated_at: '2026-02-28T00:00:00Z',
   },
@@ -31,6 +33,7 @@ export const MOCK_USERS: User[] = [
     current_streak: 3,
     longest_streak: 3,
     streak_freezes_remaining: 1,
+    notification_preferences: DEFAULT_NOTIFICATION_PREFERENCES,
     created_at: '2026-02-28T00:00:00Z',
     updated_at: '2026-02-28T00:00:00Z',
   },
@@ -47,6 +50,7 @@ export const MOCK_USERS: User[] = [
     current_streak: 2,
     longest_streak: 4,
     streak_freezes_remaining: 1,
+    notification_preferences: DEFAULT_NOTIFICATION_PREFERENCES,
     created_at: '2026-02-28T00:00:00Z',
     updated_at: '2026-02-28T00:00:00Z',
   },
@@ -63,6 +67,7 @@ export const MOCK_USERS: User[] = [
     current_streak: 1,
     longest_streak: 2,
     streak_freezes_remaining: 0,
+    notification_preferences: DEFAULT_NOTIFICATION_PREFERENCES,
     created_at: '2026-02-28T00:00:00Z',
     updated_at: '2026-02-28T00:00:00Z',
   },
