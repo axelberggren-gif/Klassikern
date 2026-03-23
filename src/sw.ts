@@ -55,3 +55,29 @@ self.addEventListener("install", (event: ExtendableEvent) => {
     caches.open("klassikern-offline-fallback").then((cache) => cache.add(OFFLINE_URL))
   );
 });
+
+// ---------------------------------------------------------------------------
+// Notification click: open/focus the relevant page
+// ---------------------------------------------------------------------------
+self.addEventListener("notificationclick", (event: NotificationEvent) => {
+  event.notification.close();
+
+  const url = (event.notification.data?.url as string) || "/";
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        // Focus an existing window if one is open
+        for (const client of clientList) {
+          if ("focus" in client) {
+            client.focus();
+            client.navigate(url);
+            return;
+          }
+        }
+        // Otherwise open a new window
+        return self.clients.openWindow(url);
+      })
+  );
+});

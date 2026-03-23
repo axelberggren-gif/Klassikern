@@ -53,6 +53,12 @@ export {
 export type { WeeklyEPInfo, AttackBossWeeklyResult } from './boss';
 
 export {
+  getNotificationPreferences,
+  updateNotificationPreference,
+  updateAllNotificationPreferences,
+} from './notifications';
+
+export {
   getWeeklyEPByUser,
   getWeeklyWinners,
   getSportLeaderboard,

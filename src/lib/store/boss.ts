@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase';
 import { calculateBossDamage, generateDefeatText } from '../boss-engine';
 import type { CritContext } from '../boss-engine';
 import { getWeekRange, getCurrentWeekNumber } from '../date-utils';
+import { notify } from '../notifications';
 import type {
   Profile,
   SportType,
@@ -12,6 +13,7 @@ import type {
   BossTrophy,
   BossTrophyWithBoss,
   Session,
+  NotificationPreferences,
 } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -94,6 +96,7 @@ export async function attackBoss(params: {
   sessionId: string;
   sportType: SportType;
   epEarned: number;
+  notificationPrefs?: NotificationPreferences;
 }): Promise<{
   damage: number;
   isCritical: boolean;
@@ -178,6 +181,42 @@ export async function attackBoss(params: {
       bossId: encounter.boss.id,
       bossLevel: encounter.boss.level,
     });
+  }
+
+  // --- Notifications ---
+  const prefs = params.notificationPrefs;
+
+  if (damageResult.isCritical && encounter.boss.weakness === params.sportType) {
+    notify(
+      'boss_weakness_hit',
+      prefs,
+      'Supereffektivt!',
+      `Din traning traffade ${encounter.boss.emoji} ${encounter.boss.name}s svaghet`,
+      'boss-weakness',
+      { url: '/group' }
+    );
+  }
+
+  if (newHP > 0 && newHP <= encounter.max_hp * 0.1) {
+    notify(
+      'boss_low_hp',
+      prefs,
+      `${encounter.boss.emoji} ${encounter.boss.name} ar nastan besegrad!`,
+      `Bara ${newHP} HP kvar — en attack till!`,
+      'boss-low-hp',
+      { url: '/group' }
+    );
+  }
+
+  if (isKillingBlow) {
+    notify(
+      'boss_killing_blow',
+      prefs,
+      'Dodsstoten!',
+      `Du besegrade ${encounter.boss.emoji} ${encounter.boss.name}!`,
+      'boss-killing-blow',
+      { url: '/group' }
+    );
   }
 
   return {
@@ -405,6 +444,7 @@ export async function attackBossWeekly(params: {
   userId: string;
   groupId: string;
   userStreak?: number;
+  notificationPrefs?: NotificationPreferences;
 }): Promise<AttackBossWeeklyResult | null> {
   const supabase = createClient();
 
@@ -508,6 +548,42 @@ export async function attackBossWeekly(params: {
       defeatText,
       critSecret,
     });
+  }
+
+  // --- Notifications ---
+  const prefs = params.notificationPrefs;
+
+  if (damageResult.isCritical && encounter.boss.weakness === weeklyInfo.dominantSport) {
+    notify(
+      'boss_weakness_hit',
+      prefs,
+      'Supereffektivt!',
+      `Din traning traffade ${encounter.boss.emoji} ${encounter.boss.name}s svaghet`,
+      'boss-weakness',
+      { url: '/group' }
+    );
+  }
+
+  if (newHP > 0 && newHP <= encounter.max_hp * 0.1) {
+    notify(
+      'boss_low_hp',
+      prefs,
+      `${encounter.boss.emoji} ${encounter.boss.name} ar nastan besegrad!`,
+      `Bara ${newHP} HP kvar — en attack till!`,
+      'boss-low-hp',
+      { url: '/group' }
+    );
+  }
+
+  if (isKillingBlow) {
+    notify(
+      'boss_killing_blow',
+      prefs,
+      'Dodsstoten!',
+      `Du besegrade ${encounter.boss.emoji} ${encounter.boss.name}!`,
+      'boss-killing-blow',
+      { url: '/group' }
+    );
   }
 
   return {
