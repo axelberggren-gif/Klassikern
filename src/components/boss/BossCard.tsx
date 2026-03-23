@@ -11,7 +11,11 @@ import type { BossEncounterWithBoss, BossAttackWithUser, SportType, CritConditio
 import type { WeeklyEPInfo } from '@/lib/store';
 
 /** Convert crit conditions into cryptic in-universe riddles (no spoilers). */
-function getCrypticHints(conditions: CritCondition[]): string[] {
+function getCrypticHints(conditions: CritCondition[], bossName: string): string[] {
+  if (conditions.length === 0) {
+    // Fallback: always show at least one mysterious hint
+    return [`❓ ${bossName} döljer en hemlig svaghet... utforska och upptäck den.`];
+  }
   const hintMap: Record<string, string> = {
     evening_session: '🌙 Mörkret ger kraft åt den som vågar...',
     dawn_raid: '🌅 De som vaknar före solen ser svagheten...',
@@ -25,8 +29,11 @@ function getCrypticHints(conditions: CritCondition[]): string[] {
 }
 
 /** Pick a boss taunt from defeat_quotes, stripped of placeholders. */
-function getBossTaunt(quotes: string[]): string | null {
-  if (quotes.length === 0) return null;
+function getBossTaunt(quotes: string[], bossName: string): string {
+  if (quotes.length === 0) {
+    // Fallback taunt when defeat_quotes aren't in the DB yet
+    return `Ni tror att ni kan besegra mig? ${bossName} böjer sig för ingen...`;
+  }
   // Use a stable-ish index based on the hour so it doesn't flicker on re-render
   const idx = new Date().getHours() % quotes.length;
   return quotes[idx]
@@ -56,12 +63,12 @@ export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: Bos
   const [screenFlash, setScreenFlash] = useState(false);
 
   const crypticHints = useMemo(
-    () => getCrypticHints(encounter?.boss.crit_conditions ?? []),
-    [encounter?.boss.crit_conditions]
+    () => getCrypticHints(encounter?.boss.crit_conditions ?? [], encounter?.boss.name ?? ''),
+    [encounter?.boss.crit_conditions, encounter?.boss.name]
   );
   const bossTaunt = useMemo(
-    () => getBossTaunt(encounter?.boss.defeat_quotes ?? []),
-    [encounter?.boss.defeat_quotes]
+    () => getBossTaunt(encounter?.boss.defeat_quotes ?? [], encounter?.boss.name ?? ''),
+    [encounter?.boss.defeat_quotes, encounter?.boss.name]
   );
 
   const handleAttack = useCallback(async () => {
@@ -143,25 +150,27 @@ export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: Bos
         } ${shaking ? 'animate-boss-hit-shake' : ''}`}
       >
         {/* Boss identity */}
-        <div className="flex items-start gap-4 mb-4">
+        <div className="flex items-start gap-4 mb-2">
           <span className={`text-6xl leading-none ${emojiHit ? 'animate-boss-emoji-hit' : ''}`}>
             {boss.emoji}
           </span>
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-bold text-slate-50">{boss.name}</h2>
-            <p className="mt-1 text-xs italic text-slate-400 line-clamp-2">
-              {boss.lore}
-            </p>
+            {!loreExpanded && (
+              <p className="mt-1 text-xs italic text-slate-400 line-clamp-2">
+                {boss.lore}
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Expandable mythology */}
+        {/* Expandable mythology panel — lore + hints + taunt */}
         <button
           onClick={() => setLoreExpanded(!loreExpanded)}
           className="flex w-full items-center gap-2 rounded-lg bg-slate-800/60 px-3 py-2 mb-3 transition-colors active:bg-slate-800"
         >
           <BookOpen size={14} className="text-amber-400 flex-shrink-0" />
-          <span className="text-[11px] font-semibold text-amber-400">Mytologi</span>
+          <span className="text-[11px] font-semibold text-amber-400">Mytologi &amp; hemligheter</span>
           <ChevronDown
             size={14}
             className={`ml-auto text-slate-500 transition-transform ${loreExpanded ? 'rotate-180' : ''}`}
@@ -169,19 +178,34 @@ export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: Bos
         </button>
         {loreExpanded && (
           <div className="mb-4 rounded-xl bg-gradient-to-b from-slate-800/80 to-slate-900/80 border border-amber-500/10 px-4 py-3 animate-slide-up">
+            {/* Full lore */}
             <p className="text-xs text-slate-300 italic leading-relaxed">
               {boss.lore}
             </p>
-            {bossTaunt && (
-              <div className="mt-3 border-t border-slate-700/50 pt-3">
-                <p className="text-[10px] font-bold text-rose-400/80 uppercase tracking-wider mb-1">
-                  {boss.emoji} {boss.name} viskar:
-                </p>
-                <p className="text-xs text-rose-300/70 italic">
-                  &ldquo;{bossTaunt}&rdquo;
-                </p>
+
+            {/* Cryptic crit hints */}
+            <div className="mt-3 border-t border-slate-700/50 pt-3">
+              <p className="text-[10px] font-bold text-violet-400 uppercase tracking-wider mb-1.5">
+                🔮 Dolda svagheter
+              </p>
+              <div className="flex flex-col gap-1">
+                {crypticHints.map((hint, i) => (
+                  <p key={i} className="text-[11px] text-violet-300/70 italic">
+                    {hint}
+                  </p>
+                ))}
               </div>
-            )}
+            </div>
+
+            {/* Boss taunt */}
+            <div className="mt-3 border-t border-slate-700/50 pt-3">
+              <p className="text-[10px] font-bold text-rose-400/80 uppercase tracking-wider mb-1">
+                {boss.emoji} {boss.name} viskar:
+              </p>
+              <p className="text-xs text-rose-300/70 italic">
+                &ldquo;{bossTaunt}&rdquo;
+              </p>
+            </div>
           </div>
         )}
 
@@ -206,22 +230,6 @@ export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: Bos
         <div className="mt-3 flex items-center gap-2 flex-wrap">
           <WeaknessResistance weakness={boss.weakness} resistance={boss.resistance} />
         </div>
-
-        {/* Cryptic crit hints */}
-        {crypticHints.length > 0 && (
-          <div className="mt-3 rounded-xl bg-violet-500/5 border border-violet-500/15 px-3 py-2.5">
-            <p className="text-[10px] font-bold text-violet-400 uppercase tracking-wider mb-1.5">
-              🔮 Dolda svagheter
-            </p>
-            <div className="flex flex-col gap-1">
-              {crypticHints.map((hint, i) => (
-                <p key={i} className="text-[11px] text-violet-300/70 italic">
-                  {hint}
-                </p>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Hit result banner (persists for 3s) */}
         {hitState && (
