@@ -56,6 +56,12 @@ export {
   getNotificationPreferences,
   updateNotificationPreference,
   updateAllNotificationPreferences,
+  insertNotification,
+  getNotifications,
+  getUnreadCount,
+  markAllRead,
+  markRead,
+  clearAllNotifications,
 } from './notifications';
 
 export {

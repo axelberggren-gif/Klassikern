@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Trophy, Flame, Zap, Swords } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import NotificationBell from '@/components/NotificationBell';
 import StreakBadge from '@/components/dashboard/StreakBadge';
 import TodayCard from '@/components/dashboard/TodayCard';
 import WeekSummary from '@/components/dashboard/WeekSummary';
@@ -544,7 +545,7 @@ export default function DashboardPage() {
               <p className="text-sm text-slate-400">Hej, {profile.display_name}!</p>
             </div>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {accumulatedHours > 0 && (
               <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-400">
                 {accumulatedHours}h
@@ -554,6 +555,7 @@ export default function DashboardPage() {
             <span className="text-xs font-semibold text-slate-400">
               Kapitel {weekNumber}
             </span>
+            <NotificationBell />
           </div>
         </div>
       </div>

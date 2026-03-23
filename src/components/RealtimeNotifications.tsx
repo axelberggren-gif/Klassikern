@@ -50,7 +50,7 @@ export default function RealtimeNotifications() {
             // Don't notify for own actions
             if (row.user_id === user!.id) return;
 
-            handleFeedEvent(row.event_type, row.event_data, prefs);
+            handleFeedEvent(row.event_type, row.event_data, prefs, user!.id);
           }
         )
         .subscribe();
@@ -76,7 +76,8 @@ export default function RealtimeNotifications() {
 function handleFeedEvent(
   eventType: FeedEventType,
   data: Record<string, unknown>,
-  prefs: NotificationPreferences
+  prefs: NotificationPreferences,
+  currentUserId: string
 ) {
   switch (eventType) {
     case 'session_logged': {
@@ -84,14 +85,13 @@ function handleFeedEvent(
       const sportLabel = SPORT_CONFIG[sportType as keyof typeof SPORT_CONFIG]?.label ?? sportType;
       const duration = data.duration as number;
       const ep = data.ep as number;
-      // We don't have the user's name here from the event_data, so use a generic message
       notify(
         'teammate_session',
         prefs,
         'Lagkamrat tranade!',
         `${sportLabel} ${duration} min — ${ep} EP`,
         `teammate-session-${Date.now()}`,
-        { url: '/' }
+        { url: '/', userId: currentUserId }
       );
       break;
     }
@@ -105,7 +105,7 @@ function handleFeedEvent(
         `${bossEmoji} Boss besegrad!`,
         `Gruppen besegrade bossen med ${totalAttackers} attackerare`,
         'boss-defeated',
-        { url: '/group' }
+        { url: '/group', userId: currentUserId }
       );
       break;
     }
@@ -124,7 +124,7 @@ function handleFeedEvent(
           `${bossEmoji} ${bossName} ar nastan klar!`,
           `Bara ${pct}% HP kvar efter ${damage} skada`,
           'boss-low-hp',
-          { url: '/group' }
+          { url: '/group', userId: currentUserId }
         );
       }
       break;
@@ -137,12 +137,8 @@ function handleFeedEvent(
         'Lagkamrat fick badge!',
         (data.badge_name as string) ?? '',
         `teammate-badge-${Date.now()}`,
-        { url: '/group' }
+        { url: '/group', userId: currentUserId }
       );
-      break;
-
-    case 'streak_milestone':
-      // Streak milestones for teammates — no separate notification needed
       break;
 
     default:

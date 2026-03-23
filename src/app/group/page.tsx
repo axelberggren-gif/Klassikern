@@ -19,6 +19,7 @@ import {
   Swords,
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import NotificationBell from '@/components/NotificationBell';
 import EnhancedFeed from '@/components/group/EnhancedFeed';
 import type { EnhancedFeedItem } from '@/components/group/EnhancedFeed';
 import PowerRankings from '@/components/group/PowerRankings';
@@ -273,8 +274,13 @@ function NoGroupView({
   return (
     <AppShell>
       <div className="bg-slate-900 px-5 pt-12 pb-4 border-b border-slate-700">
-        <h1 className="text-xl font-bold text-slate-50">Grupp</h1>
-        <p className="text-sm text-slate-400 mt-1">Du är inte med i någon grupp ännu</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-slate-50">Grupp</h1>
+            <p className="text-sm text-slate-400 mt-1">Du är inte med i någon grupp ännu</p>
+          </div>
+          <NotificationBell />
+        </div>
       </div>
       <div className="flex flex-col gap-4 px-4 py-6">
         <div className="flex gap-1 p-1 rounded-xl bg-slate-800">
@@ -751,12 +757,17 @@ export default function GroupPage() {
     <AppShell>
       {/* Header */}
       <div className="bg-slate-900 px-5 pt-12 pb-4 border-b border-slate-700">
-        <h1 className="text-xl font-bold text-slate-50">
-          {groupDetails?.name || 'Grupp'}
-        </h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Klassiker 2026 &middot; {members.length} medlemmar
-        </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-slate-50">
+              {groupDetails?.name || 'Grupp'}
+            </h1>
+            <p className="text-sm text-slate-400 mt-1">
+              Klassiker 2026 &middot; {members.length} medlemmar
+            </p>
+          </div>
+          <NotificationBell />
+        </div>
       </div>
 
       {/* Main tab switcher */}

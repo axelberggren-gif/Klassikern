@@ -702,6 +702,38 @@ export interface Database {
         };
         Relationships: [];
       };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          type: string;
+          title: string;
+          body: string | null;
+          url: string;
+          is_read: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          type: string;
+          title: string;
+          body?: string | null;
+          url?: string;
+          is_read?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          type?: string;
+          title?: string;
+          body?: string | null;
+          url?: string;
+          is_read?: boolean;
+        };
+        Relationships: [];
+      };
       strava_connections: {
         Row: {
           id: string;
@@ -787,6 +819,8 @@ export type WeeklyChallenge = Database['public']['Tables']['weekly_challenges'][
 export type ExpeditionWaypoint = Database['public']['Tables']['expedition_waypoints']['Row'];
 export type FeedComment = Database['public']['Tables']['feed_comments']['Row'];
 export type CallOutChallenge = Database['public']['Tables']['call_out_challenges']['Row'];
+export type InAppNotification = Database['public']['Tables']['notifications']['Row'];
+export type InAppNotificationInsert = Database['public']['Tables']['notifications']['Insert'];
 export type StravaConnection = Database['public']['Tables']['strava_connections']['Row'];
 export type BossDefinition = Database['public']['Tables']['boss_definitions']['Row'];
 export type BossEncounter = Database['public']['Tables']['boss_encounters']['Row'];
