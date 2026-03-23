@@ -59,6 +59,21 @@ async function updateSession(request: NextRequest) {
       }
     );
 
+    // Handle Supabase PKCE auth code exchange (recovery links, magic links, etc.)
+    // Supabase redirects here with ?code=... after verifying the email token.
+    const code = request.nextUrl.searchParams.get('code');
+    if (code) {
+      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+      if (!exchangeError) {
+        // Code exchanged successfully — redirect to same path without the code param.
+        // The client-side onAuthStateChange will fire PASSWORD_RECOVERY and redirect
+        // to /reset-password if this was a recovery flow.
+        const url = request.nextUrl.clone();
+        url.searchParams.delete('code');
+        return NextResponse.redirect(url);
+      }
+    }
+
     // IMPORTANT: Do NOT use supabase.auth.getSession() here.
     // getUser() sends a request to the Supabase Auth server every time
     // to revalidate the Auth token, while getSession() does not.
