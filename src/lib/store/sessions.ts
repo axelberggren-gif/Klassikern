@@ -138,7 +138,7 @@ export async function logSession(params: {
     `${sportLabel} loggat!`,
     `${params.durationMinutes} min — du fick ${ep} EP`,
     'session-logged',
-    { url: '/' }
+    { url: '/', userId: params.userId }
   );
 
   // Streak milestones
@@ -152,7 +152,7 @@ export async function logSession(params: {
         ? `Otroligt! Din streak-bonus ar nu 1.3x`
         : `Bra jobbat! Hog streak = mer EP`,
       'streak-milestone',
-      { url: '/profile' }
+      { url: '/profile', userId: params.userId }
     );
   }
 
@@ -164,7 +164,7 @@ export async function logSession(params: {
       'Ny badge!',
       badgeName,
       `badge-${badgeName}`,
-      { url: '/profile' }
+      { url: '/profile', userId: params.userId }
     );
   }
 

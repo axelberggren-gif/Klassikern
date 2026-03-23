@@ -58,7 +58,7 @@ export default function StravaConnect({ userId, onBadgesEarned }: StravaConnectP
             'Strava synkad!',
             `${data.imported} aktivitet${data.imported !== 1 ? 'er' : ''} importerade — ${data.total_ep_earned} EP`,
             'strava-sync',
-            { url: '/profile' }
+            { url: '/profile', userId }
           );
         }
       } else {
@@ -71,7 +71,7 @@ export default function StravaConnect({ userId, onBadgesEarned }: StravaConnectP
           'Strava-synk misslyckades',
           data.error || 'Forsok igen senare',
           'strava-sync-fail',
-          { url: '/profile' }
+          { url: '/profile', userId }
         );
       }
     } catch {

@@ -119,10 +119,10 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 }
 
 // ---------------------------------------------------------------------------
-// Show notification via service worker (works even when app is backgrounded)
+// Show browser notification via service worker
 // ---------------------------------------------------------------------------
 
-export async function showNotification(
+async function showBrowserNotification(
   title: string,
   options?: {
     body?: string;
@@ -142,12 +142,12 @@ export async function showNotification(
       data: options?.data ?? {},
     });
   } catch (err) {
-    console.error('Error showing notification:', err);
+    console.error('Error showing browser notification:', err);
   }
 }
 
 // ---------------------------------------------------------------------------
-// Notification dispatch — checks preferences before showing
+// Notification dispatch — writes to DB (in-app log) + browser notification
 // ---------------------------------------------------------------------------
 
 export async function notify(
@@ -162,5 +162,17 @@ export async function notify(
   const prefs = preferences ?? DEFAULT_NOTIFICATION_PREFERENCES;
   if (!prefs[type]) return;
 
-  await showNotification(title, { body, tag, data });
+  const url = (data?.url as string) ?? '/';
+
+  // Write to in-app notification log (import dynamically to avoid circular deps)
+  const userId = data?.userId as string | undefined;
+  if (userId) {
+    const { insertNotification } = await import('@/lib/store/notifications');
+    insertNotification({ userId, type, title, body, url }).catch((err) =>
+      console.error('Error saving notification to DB:', err)
+    );
+  }
+
+  // Attempt browser notification (no-op if permission not granted or SW not ready)
+  showBrowserNotification(title, { body, tag, data });
 }

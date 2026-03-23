@@ -193,7 +193,7 @@ export async function attackBoss(params: {
       'Supereffektivt!',
       `Din traning traffade ${encounter.boss.emoji} ${encounter.boss.name}s svaghet`,
       'boss-weakness',
-      { url: '/group' }
+      { url: '/group', userId: params.userId }
     );
   }
 
@@ -204,7 +204,7 @@ export async function attackBoss(params: {
       `${encounter.boss.emoji} ${encounter.boss.name} ar nastan besegrad!`,
       `Bara ${newHP} HP kvar — en attack till!`,
       'boss-low-hp',
-      { url: '/group' }
+      { url: '/group', userId: params.userId }
     );
   }
 
@@ -215,7 +215,7 @@ export async function attackBoss(params: {
       'Dodsstoten!',
       `Du besegrade ${encounter.boss.emoji} ${encounter.boss.name}!`,
       'boss-killing-blow',
-      { url: '/group' }
+      { url: '/group', userId: params.userId }
     );
   }
 
@@ -560,7 +560,7 @@ export async function attackBossWeekly(params: {
       'Supereffektivt!',
       `Din traning traffade ${encounter.boss.emoji} ${encounter.boss.name}s svaghet`,
       'boss-weakness',
-      { url: '/group' }
+      { url: '/group', userId: params.userId }
     );
   }
 
@@ -571,7 +571,7 @@ export async function attackBossWeekly(params: {
       `${encounter.boss.emoji} ${encounter.boss.name} ar nastan besegrad!`,
       `Bara ${newHP} HP kvar — en attack till!`,
       'boss-low-hp',
-      { url: '/group' }
+      { url: '/group', userId: params.userId }
     );
   }
 
@@ -582,7 +582,7 @@ export async function attackBossWeekly(params: {
       'Dodsstoten!',
       `Du besegrade ${encounter.boss.emoji} ${encounter.boss.name}!`,
       'boss-killing-blow',
-      { url: '/group' }
+      { url: '/group', userId: params.userId }
     );
   }
 

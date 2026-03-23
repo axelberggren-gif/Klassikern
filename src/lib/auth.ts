@@ -99,6 +99,12 @@ export function useAuth(): AuthState {
         setLoading(false);
         router.replace('/login');
       }
+
+      // Supabase fires PASSWORD_RECOVERY when a recovery link is opened.
+      // Redirect to the reset-password page so the user can set a new password.
+      if (event === 'PASSWORD_RECOVERY') {
+        router.replace('/reset-password');
+      }
     });
 
     return () => {

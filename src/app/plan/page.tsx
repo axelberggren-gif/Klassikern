@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import NotificationBell from '@/components/NotificationBell';
 import { SPORT_CONFIG } from '@/lib/sport-config';
 import { getCurrentWeekNumber, getPlanForWeek, getTotalWeeks } from '@/lib/training-plan';
 import type { PlannedSession } from '@/types/database';
@@ -120,10 +121,15 @@ export default function PlanPage() {
     <AppShell>
       {/* Header */}
       <div className="bg-slate-900 px-5 pt-12 pb-5 border-b border-slate-700">
-        <h1 className="text-xl font-bold text-slate-50">Traningsplan</h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Vecka {currentWeek} av {totalWeeks} · Feb – Sep 2026
-        </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-slate-50">Traningsplan</h1>
+            <p className="text-sm text-slate-400 mt-1">
+              Vecka {currentWeek} av {totalWeeks} · Feb – Sep 2026
+            </p>
+          </div>
+          <NotificationBell />
+        </div>
       </div>
 
       {/* Race milestones */}

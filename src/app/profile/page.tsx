@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import BadgeUnlockModal, { getBadgeIcon } from '@/components/BadgeUnlockModal';
+import NotificationBell from '@/components/NotificationBell';
 import NotificationSettings from '@/components/NotificationSettings';
 import StravaConnect from '@/components/StravaConnect';
 import { useAuth } from '@/lib/auth';
@@ -269,7 +270,7 @@ function ProfilePageInner() {
           'Mal uppdaterat',
           `${label}: ${parsed}${field.includes('hours') ? ' timmar' : ' minuter'}`,
           'goal-updated',
-          { url: '/profile' }
+          { url: '/profile', userId: user.id }
         );
       }
     }
@@ -279,11 +280,14 @@ function ProfilePageInner() {
     <AppShell>
       {/* Header */}
       <div className="bg-slate-900 px-5 pt-12 pb-4 border-b border-slate-700">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="text-slate-400">
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-xl font-bold text-slate-50">Profil</h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.back()} className="text-slate-400">
+              <ArrowLeft size={24} />
+            </button>
+            <h1 className="text-xl font-bold text-slate-50">Profil</h1>
+          </div>
+          <NotificationBell />
         </div>
       </div>
 
