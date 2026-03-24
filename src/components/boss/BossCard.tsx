@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { Swords, Loader2, Zap, BookOpen, ChevronDown } from 'lucide-react';
+import { Swords, Loader2, Zap, BookOpen, ChevronDown, Skull } from 'lucide-react';
 import BossHPBar from './BossHPBar';
 import WeaknessResistance from './WeaknessResistance';
 import BossAttackLog from './BossAttackLog';
@@ -44,12 +44,13 @@ function getBossTaunt(quotes: string[], bossName: string): string {
 
 interface BossCardProps {
   encounter: BossEncounterWithBoss | null;
+  defeatedEncounter?: BossEncounterWithBoss | null;
   attacks: BossAttackWithUser[];
   weeklyEP: WeeklyEPInfo | null;
   onAttack: () => Promise<{ damage: number; isCritical: boolean } | null>;
 }
 
-export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: BossCardProps) {
+export default function BossCard({ encounter, defeatedEncounter, attacks, weeklyEP, onAttack }: BossCardProps) {
   const [attacking, setAttacking] = useState(false);
   const [loreExpanded, setLoreExpanded] = useState(false);
   // Hit animation state
@@ -98,7 +99,11 @@ export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: Bos
     }
   }, [weeklyEP, attacking, encounter, onAttack]);
 
+  // No active boss — show defeated boss if available, otherwise empty state
   if (!encounter) {
+    if (defeatedEncounter) {
+      return <DefeatedBossCard encounter={defeatedEncounter} />;
+    }
     return (
       <div className="rounded-2xl border border-slate-700 bg-slate-900 p-6 text-center">
         <span className="text-4xl">⚔️</span>
@@ -315,6 +320,91 @@ export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: Bos
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Defeated Boss Card — shown between boss kill and next boss spawn
+// ---------------------------------------------------------------------------
+
+function DefeatedBossCard({ encounter }: { encounter: BossEncounterWithBoss }) {
+  const boss = encounter.boss;
+  const defeatText = (encounter as unknown as Record<string, unknown>).defeat_text as string | null;
+  const critSecret = (encounter as unknown as Record<string, unknown>).crit_secret as string | null;
+
+  return (
+    <div className="rounded-2xl border border-slate-700/50 bg-slate-900 p-5 relative overflow-hidden">
+      {/* Defeated overlay shimmer */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-800/0 via-emerald-500/5 to-slate-800/0 pointer-events-none" />
+
+      {/* Boss identity — greyed out with defeated marker */}
+      <div className="flex items-start gap-4 mb-4">
+        <div className="relative">
+          <span className="text-6xl leading-none grayscale opacity-60">
+            {boss.emoji}
+          </span>
+          <span className="absolute -bottom-1 -right-1 text-lg">
+            <Skull size={20} className="text-slate-500" />
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-slate-400 line-through decoration-slate-600">{boss.name}</h2>
+            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+              Besegrad
+            </span>
+          </div>
+          <p className="mt-1 text-xs italic text-slate-500">
+            Nivå {boss.level} — {boss.lore}
+          </p>
+        </div>
+      </div>
+
+      {/* HP Bar at 0 */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">HP</span>
+          <span className="text-xs font-bold text-slate-500">0 / {encounter.max_hp}</span>
+        </div>
+        <div className="h-3 w-full rounded-full bg-slate-800 overflow-hidden">
+          <div className="h-full w-0 rounded-full bg-slate-700" />
+        </div>
+      </div>
+
+      {/* Defeat quote speech bubble */}
+      {defeatText && (
+        <div className="rounded-xl bg-slate-800/80 border border-slate-700/50 p-4 mb-3">
+          <div className="flex items-start gap-2">
+            <span className="text-lg mt-0.5">{boss.emoji}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                Sista orden
+              </p>
+              <p className="text-sm italic text-slate-300 leading-relaxed">
+                &ldquo;{defeatText}&rdquo;
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Crit secret reveal */}
+      {critSecret && (
+        <div className="rounded-lg bg-violet-500/10 border border-violet-500/20 px-3 py-2 mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">🔮</span>
+            <p className="text-xs text-violet-300">{critSecret}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Next boss teaser */}
+      <div className="rounded-xl bg-slate-800 border border-slate-700 py-3 text-center">
+        <p className="text-xs text-slate-400">
+          En ny boss dyker upp snart...
+        </p>
       </div>
     </div>
   );

@@ -37,6 +37,7 @@ export { getStravaConnection, disconnectStrava } from './strava';
 
 export {
   getActiveBossEncounter,
+  getLatestDefeatedEncounter,
   getBossAttacks,
   getUniqueAttackerCount,
   attackBoss,
