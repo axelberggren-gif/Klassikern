@@ -37,6 +37,15 @@ export { getAllBadges, getUserBadges } from './badges';
 export { getStravaConnection, disconnectStrava } from './strava';
 
 export {
+  getActiveChallenge,
+  getChallengeHistory,
+  createChallenge,
+  resolveChallenge,
+  getChallengeProgress,
+  getChallengeUnit,
+} from './challenges';
+
+export {
   getActiveBossEncounter,
   getBossAttacks,
   getUniqueAttackerCount,

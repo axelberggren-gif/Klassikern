@@ -20,6 +20,7 @@ import WeeklyHistory from '@/components/group/WeeklyHistory';
 import SportLeaderboard from '@/components/group/SportLeaderboard';
 import HeadToHead from '@/components/group/HeadToHead';
 import CallOutChallenge from '@/components/group/CallOutChallenge';
+import WeeklyChallengeCard from '@/components/dashboard/WeeklyChallengeCard';
 import { useAuth } from '@/lib/auth';
 import {
   getGroupMembers,
@@ -40,6 +41,8 @@ import {
   getWeeklyWinners,
   getSportLeaderboard,
   getPowerRankings,
+  getActiveChallenge,
+  getChallengeProgress,
 } from '@/lib/store';
 import type { WeeklyEPInfo, AttackBossWeeklyResult } from '@/lib/store';
 import type { WeeklyWinnerResult, SportLeaderboardEntry } from '@/lib/store/leaderboard';
@@ -55,6 +58,8 @@ import type {
   ChallengeMetric,
   CallOutChallengeWithUsers,
   PowerRanking,
+  WeeklyChallenge,
+  ChallengeParticipantProgress,
 } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -225,6 +230,8 @@ export default function DashboardPage() {
   const [weeklyEP, setWeeklyEP] = useState<WeeklyEPInfo | null>(null);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [defeatResult, setDefeatResult] = useState<AttackBossWeeklyResult | null>(null);
+  const [challenge, setChallenge] = useState<WeeklyChallenge | null>(null);
+  const [challengeProgress, setChallengeProgress] = useState<ChallengeParticipantProgress[]>([]);
 
   // Tabs
   const [activeTab, setActiveTab] = useState<DashboardTab>('feed');
@@ -285,14 +292,16 @@ export default function DashboardPage() {
       setGroupId(userGroupId);
 
       if (userGroupId) {
-        const [feedData, encounter, history] = await Promise.all([
+        const [feedData, encounter, history, activeChallenge] = await Promise.all([
           getActivityFeed(userGroupId),
           getActiveBossEncounter(userGroupId),
           getGroupBossHistory(userGroupId),
+          getActiveChallenge(userGroupId),
         ]);
         setFeed(feedData as EnhancedFeedItem[]);
         setBossEncounter(encounter);
         setBossHistory(history);
+        setChallenge(activeChallenge);
 
         let dMap = new Map<string, number>();
         if (encounter) {
@@ -308,6 +317,12 @@ export default function DashboardPage() {
           }
         }
         setDamageMap(dMap);
+
+        // Load challenge progress
+        if (activeChallenge && groupMembers.length > 0) {
+          const progress = await getChallengeProgress(activeChallenge, groupMembers);
+          setChallengeProgress(progress);
+        }
 
         // Load leaderboard data in background
         const now = new Date();
@@ -596,6 +611,15 @@ export default function DashboardPage() {
 
         {/* Race countdown */}
         <RaceCountdown profile={profile} sessions={allSessions} plan={TRAINING_PLAN} />
+
+        {/* Weekly challenge */}
+        {challenge && (
+          <WeeklyChallengeCard
+            challenge={challenge}
+            progress={challengeProgress}
+            currentUserId={user!.id}
+          />
+        )}
 
         {/* Today's session card */}
         <TodayCard todayPlan={todayPlan} todaySessions={todaySessions} />
