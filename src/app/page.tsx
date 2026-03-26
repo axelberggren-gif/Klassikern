@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { Trophy, Flame, Zap, Swords } from 'lucide-react';
 import AppShell from '@/components/AppShell';
@@ -43,6 +43,10 @@ import {
 import type { WeeklyEPInfo, AttackBossWeeklyResult } from '@/lib/store';
 import type { WeeklyWinnerResult, SportLeaderboardEntry } from '@/lib/store/leaderboard';
 import { getCurrentWeekNumber, getPlanForWeek } from '@/lib/training-plan';
+import {
+  buildRaceCountdownCards,
+  type RaceCountdownCard,
+} from '@/lib/race-countdown';
 import type {
   Profile,
   PlannedSession,
@@ -113,6 +117,113 @@ function getMedalEmoji(index: number): string {
   if (index === 1) return '\u{1F948}';
   if (index === 2) return '\u{1F949}';
   return `${index + 1}.`;
+}
+
+function formatRaceDate(dateIso: string): string {
+  const date = new Date(`${dateIso}T00:00:00`);
+  return date.toLocaleDateString('sv-SE', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function formatDaysRemaining(days: number): string {
+  if (days === 0) return 'I dag';
+  if (days === 1) return '1 dag kvar';
+  if (days < 0) return `${Math.abs(days)} dagar sedan`;
+  return `${days} dagar kvar`;
+}
+
+function getReadinessStyle(status: RaceCountdownCard['readinessStatus']) {
+  if (status === 'on_track') {
+    return {
+      label: 'På banan',
+      textClass: 'text-emerald-400',
+      bgClass: 'bg-emerald-500/15',
+      barClass: 'bg-emerald-500',
+    };
+  }
+  if (status === 'behind') {
+    return {
+      label: 'Lite efter',
+      textClass: 'text-amber-400',
+      bgClass: 'bg-amber-500/15',
+      barClass: 'bg-amber-500',
+    };
+  }
+  return {
+    label: 'Signifikant efter',
+    textClass: 'text-rose-400',
+    bgClass: 'bg-rose-500/15',
+    barClass: 'bg-rose-500',
+  };
+}
+
+function RaceCountdownSection({ cards }: { cards: RaceCountdownCard[] }) {
+  return (
+    <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-100">Nedrakning till lopp</h3>
+        <Link href="/profile" className="text-xs font-medium text-emerald-400">
+          Andra datum
+        </Link>
+      </div>
+      <div className="space-y-3">
+        {cards.map((card) => {
+          const readiness = getReadinessStyle(card.readinessStatus);
+          return (
+            <div
+              key={card.key}
+              className={`rounded-xl border border-slate-700 p-3 ${readiness.bgClass}`}
+            >
+              <div className="mb-2 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-100">{card.name}</p>
+                  <p className="text-xs text-slate-400">{formatRaceDate(card.date)}</p>
+                </div>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${readiness.textClass}`}>
+                  {formatDaysRemaining(card.daysRemaining)}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <div>
+                  <div className="mb-1 flex items-center justify-between">
+                    <p className="text-[11px] font-medium text-slate-300">Redohetsmeter</p>
+                    <p className={`text-[11px] font-semibold ${readiness.textClass}`}>
+                      {readiness.label} ({card.readinessPercent}%)
+                    </p>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-800">
+                    <div
+                      className={`h-2 rounded-full ${readiness.barClass}`}
+                      style={{ width: `${Math.min(card.readinessPercent, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-1 flex items-center justify-between">
+                    <p className="text-[11px] font-medium text-slate-300">Totalt planavklarat</p>
+                    <p className="text-[11px] font-semibold text-slate-200">
+                      {card.planCompletionPercent}%
+                    </p>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-slate-800">
+                    <div
+                      className="h-1.5 rounded-full bg-slate-300"
+                      style={{ width: `${card.planCompletionPercent}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -213,6 +324,7 @@ export default function DashboardPage() {
   const [todaySessions, setTodaySessions] = useState<Session[]>([]);
   const [weekPlan, setWeekPlan] = useState<PlannedSession[]>([]);
   const [weekSessions, setWeekSessions] = useState<Session[]>([]);
+  const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [feed, setFeed] = useState<EnhancedFeedItem[]>([]);
   const [weekNumber, setWeekNumber] = useState(1);
   const [totalSessions, setTotalSessions] = useState(0);
@@ -263,6 +375,7 @@ export default function DashboardPage() {
       ]);
 
       setTotalSessions(sessions.length);
+      setAllSessions(sessions);
       setTodaySessions(sessions.filter((s) => s.date === today));
 
       // Week sessions
@@ -519,6 +632,10 @@ export default function DashboardPage() {
   };
 
   const accumulatedHours = weeklyEP ? Math.round((weeklyEP.totalMinutes / 60) * 10) / 10 : 0;
+  const raceCountdownCards = useMemo(
+    () => buildRaceCountdownCards(profile, allSessions),
+    [profile, allSessions]
+  );
 
   return (
     <>
@@ -579,6 +696,9 @@ export default function DashboardPage() {
 
         {/* Week summary */}
         <WeekSummary weekPlan={weekPlan} weekSessions={weekSessions} weekNumber={weekNumber} />
+
+        {/* Race countdown cards */}
+        <RaceCountdownSection cards={raceCountdownCards} />
 
         {/* Tab switcher: Aktivitet / Topplista */}
         <div className="flex gap-1 p-1 rounded-xl bg-slate-800">

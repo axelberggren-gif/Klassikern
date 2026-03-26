@@ -28,7 +28,7 @@ import { useAuth } from '@/lib/auth';
 import { getPermissionState, notify } from '@/lib/notifications';
 import { checkAndAwardBadges } from '@/lib/badge-checker';
 import { updateCurrentUser, getUserBadges, getAllBadges, getUserTrophies, getAllBossDefinitions } from '@/lib/store';
-import type { Badge, UserBadgeWithBadge, BossDefinition, BossTrophyWithBoss } from '@/types/database';
+import type { Badge, UserBadgeWithBadge, BossDefinition, BossTrophyWithBoss, ProfileUpdate } from '@/types/database';
 
 function InlineEdit({
   value,
@@ -41,7 +41,7 @@ function InlineEdit({
   onSave: (val: string) => Promise<void>;
   label: string;
   suffix?: string;
-  type?: 'text' | 'number';
+  type?: 'text' | 'number' | 'date';
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value));
@@ -131,6 +131,31 @@ function InlineEdit({
         </span>
       )}
     </div>
+  );
+}
+
+type RaceDateField =
+  | 'race_date_vattern'
+  | 'race_date_vansbro'
+  | 'race_date_lidingo'
+  | 'race_date_vasaloppet';
+
+function RaceDateEdit({
+  value,
+  onSave,
+  label,
+}: {
+  value: string;
+  onSave: (val: string) => Promise<void>;
+  label: string;
+}) {
+  return (
+    <InlineEdit
+      value={value}
+      onSave={onSave}
+      label={label}
+      type="date"
+    />
   );
 }
 
@@ -251,9 +276,32 @@ function ProfilePageInner() {
 
   async function saveField(field: string, value: string) {
     if (!user) return;
-    const parsed =
-      field === 'display_name' ? value : Math.max(1, parseInt(value) || 1);
-    await updateCurrentUser(user.id, { [field]: parsed });
+
+    const numericGoalFields = new Set<GoalField>([
+      'goal_vr_hours',
+      'goal_vansbro_minutes',
+      'goal_lidingo_hours',
+    ]);
+    const raceDateFields = new Set<RaceDateField>([
+      'race_date_vattern',
+      'race_date_vansbro',
+      'race_date_lidingo',
+      'race_date_vasaloppet',
+    ]);
+
+    let parsed: string | number = value;
+    if (numericGoalFields.has(field)) {
+      parsed = Math.max(1, Number.parseInt(value, 10) || 1);
+    } else if (field === 'display_name') {
+      parsed = value.trim();
+    } else if (raceDateFields.has(field)) {
+      parsed = value;
+    }
+
+    await updateCurrentUser(
+      user.id,
+      { [field]: parsed } as Partial<Pick<Profile, EditableProfileField>>
+    );
 
     // Notify on goal changes
     if (field !== 'display_name' && profile) {
@@ -528,6 +576,58 @@ function ProfilePageInner() {
               label="Maltid"
               suffix="timmar"
               type="number"
+            />
+          </div>
+        </div>
+
+        {/* Race date card */}
+        <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
+          <h3 className="text-sm font-semibold text-slate-200 mb-4">
+            Tavlingsdatum
+          </h3>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2 text-slate-400 mb-1">
+              <Bike size={14} />
+              <span className="text-xs font-medium">Vatternrundan</span>
+            </div>
+            <InlineEdit
+              value={profile.race_date_vattern}
+              onSave={(v) => saveField('race_date_vattern', v)}
+              label="Datum"
+              type="date"
+            />
+
+            <div className="border-t border-slate-700 pt-3 flex items-center gap-2 text-slate-400 mb-1">
+              <Waves size={14} />
+              <span className="text-xs font-medium">Vansbrosimningen</span>
+            </div>
+            <InlineEdit
+              value={profile.race_date_vansbro}
+              onSave={(v) => saveField('race_date_vansbro', v)}
+              label="Datum"
+              type="date"
+            />
+
+            <div className="border-t border-slate-700 pt-3 flex items-center gap-2 text-slate-400 mb-1">
+              <PersonStanding size={14} />
+              <span className="text-xs font-medium">Lidingoloppet</span>
+            </div>
+            <InlineEdit
+              value={profile.race_date_lidingo}
+              onSave={(v) => saveField('race_date_lidingo', v)}
+              label="Datum"
+              type="date"
+            />
+
+            <div className="border-t border-slate-700 pt-3 flex items-center gap-2 text-slate-400 mb-1">
+              <Snowflake size={14} />
+              <span className="text-xs font-medium">Vasaloppet</span>
+            </div>
+            <InlineEdit
+              value={profile.race_date_vasaloppet}
+              onSave={(v) => saveField('race_date_vasaloppet', v)}
+              label="Datum"
+              type="date"
             />
           </div>
         </div>
