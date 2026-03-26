@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '@/types/database';
-import { IS_TEST_MODE, TEST_USER_ID, TEST_PROFILE } from '@/lib/test-helpers';
+import { IS_TEST_MODE, TEST_USER_ID, getTestProfile } from '@/lib/test-helpers';
 
 /**
  * Auth state returned by the useAuth hook.
@@ -162,7 +162,7 @@ export function useAuth(): AuthState {
   if (IS_TEST_MODE) {
     return {
       user: { id: TEST_USER_ID } as User,
-      profile: TEST_PROFILE as unknown as Profile,
+      profile: getTestProfile(),
       loading: false,
       signOut: async () => { router.replace('/login'); },
     };

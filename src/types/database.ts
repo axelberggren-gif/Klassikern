@@ -83,6 +83,10 @@ export interface Database {
           goal_vr_hours: number;
           goal_vansbro_minutes: number;
           goal_lidingo_hours: number;
+          race_date_vattern: string;
+          race_date_vansbro: string;
+          race_date_lidingo: string;
+          race_date_vasaloppet: string;
           total_ep: number;
           current_streak: number;
           longest_streak: number;
@@ -99,6 +103,10 @@ export interface Database {
           goal_vr_hours?: number;
           goal_vansbro_minutes?: number;
           goal_lidingo_hours?: number;
+          race_date_vattern?: string;
+          race_date_vansbro?: string;
+          race_date_lidingo?: string;
+          race_date_vasaloppet?: string;
           total_ep?: number;
           current_streak?: number;
           longest_streak?: number;
@@ -115,6 +123,10 @@ export interface Database {
           goal_vr_hours?: number;
           goal_vansbro_minutes?: number;
           goal_lidingo_hours?: number;
+          race_date_vattern?: string;
+          race_date_vansbro?: string;
+          race_date_lidingo?: string;
+          race_date_vasaloppet?: string;
           total_ep?: number;
           current_streak?: number;
           longest_streak?: number;

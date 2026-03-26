@@ -28,7 +28,55 @@ import { useAuth } from '@/lib/auth';
 import { getPermissionState, notify } from '@/lib/notifications';
 import { checkAndAwardBadges } from '@/lib/badge-checker';
 import { updateCurrentUser, getUserBadges, getAllBadges, getUserTrophies, getAllBossDefinitions } from '@/lib/store';
-import type { Badge, UserBadgeWithBadge, BossDefinition, BossTrophyWithBoss } from '@/types/database';
+import type {
+  Badge,
+  UserBadgeWithBadge,
+  BossDefinition,
+  BossTrophyWithBoss,
+  Profile,
+  ProfileUpdate,
+} from '@/types/database';
+
+type GoalField = 'goal_vr_hours' | 'goal_vansbro_minutes' | 'goal_lidingo_hours';
+type RaceDateField =
+  | 'race_date_vattern'
+  | 'race_date_vansbro'
+  | 'race_date_lidingo'
+  | 'race_date_vasaloppet';
+type EditableProfileField = 'display_name' | GoalField | RaceDateField;
+
+function normalizeDateInputValue(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+
+  // Accept already-normalized ISO date.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Accept browser-localized date text (e.g. MM/DD/YYYY) and convert to ISO.
+  const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const month = Number.parseInt(slashMatch[1], 10);
+    const day = Number.parseInt(slashMatch[2], 10);
+    const year = Number.parseInt(slashMatch[3], 10);
+    if (
+      Number.isFinite(month) &&
+      Number.isFinite(day) &&
+      Number.isFinite(year) &&
+      month >= 1 &&
+      month <= 12 &&
+      day >= 1 &&
+      day <= 31
+    ) {
+      const m = String(month).padStart(2, '0');
+      const d = String(day).padStart(2, '0');
+      return `${year}-${m}-${d}`;
+    }
+  }
+
+  return trimmed;
+}
 
 function InlineEdit({
   value,
@@ -41,7 +89,7 @@ function InlineEdit({
   onSave: (val: string) => Promise<void>;
   label: string;
   suffix?: string;
-  type?: 'text' | 'number';
+  type?: 'text' | 'number' | 'date';
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value));
@@ -61,7 +109,7 @@ function InlineEdit({
   }, [value, editing]);
 
   async function commit() {
-    const trimmed = draft.trim();
+    const trimmed = type === 'date' ? normalizeDateInputValue(draft) : draft.trim();
     if (trimmed === '' || trimmed === String(value)) {
       setEditing(false);
       setDraft(String(value));
@@ -131,6 +179,25 @@ function InlineEdit({
         </span>
       )}
     </div>
+  );
+}
+
+function RaceDateEdit({
+  value,
+  onSave,
+  label,
+}: {
+  value: string;
+  onSave: (val: string) => Promise<void>;
+  label: string;
+}) {
+  return (
+    <InlineEdit
+      value={value}
+      onSave={onSave}
+      label={label}
+      type="date"
+    />
   );
 }
 
@@ -249,11 +316,31 @@ function ProfilePageInner() {
 
   const initial = profile.display_name.charAt(0).toUpperCase();
 
-  async function saveField(field: string, value: string) {
+  async function saveField(field: EditableProfileField, value: string) {
     if (!user) return;
-    const parsed =
-      field === 'display_name' ? value : Math.max(1, parseInt(value) || 1);
-    await updateCurrentUser(user.id, { [field]: parsed });
+
+    let parsed: string | number = value;
+    if (
+      field === 'goal_vr_hours' ||
+      field === 'goal_vansbro_minutes' ||
+      field === 'goal_lidingo_hours'
+    ) {
+      parsed = Math.max(1, Number.parseInt(value, 10) || 1);
+    } else if (field === 'display_name') {
+      parsed = value.trim();
+    } else if (
+      field === 'race_date_vattern' ||
+      field === 'race_date_vansbro' ||
+      field === 'race_date_lidingo' ||
+      field === 'race_date_vasaloppet'
+    ) {
+      parsed = value;
+    }
+
+    await updateCurrentUser(
+      user.id,
+      { [field]: parsed } as ProfileUpdate
+    );
 
     // Notify on goal changes
     if (field !== 'display_name' && profile) {
@@ -528,6 +615,58 @@ function ProfilePageInner() {
               label="Maltid"
               suffix="timmar"
               type="number"
+            />
+          </div>
+        </div>
+
+        {/* Race date card */}
+        <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
+          <h3 className="text-sm font-semibold text-slate-200 mb-4">
+            Tavlingsdatum
+          </h3>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2 text-slate-400 mb-1">
+              <Bike size={14} />
+              <span className="text-xs font-medium">Vatternrundan</span>
+            </div>
+            <InlineEdit
+              value={profile.race_date_vattern}
+              onSave={(v) => saveField('race_date_vattern', v)}
+              label="Datum"
+              type="date"
+            />
+
+            <div className="border-t border-slate-700 pt-3 flex items-center gap-2 text-slate-400 mb-1">
+              <Waves size={14} />
+              <span className="text-xs font-medium">Vansbrosimningen</span>
+            </div>
+            <InlineEdit
+              value={profile.race_date_vansbro}
+              onSave={(v) => saveField('race_date_vansbro', v)}
+              label="Datum"
+              type="date"
+            />
+
+            <div className="border-t border-slate-700 pt-3 flex items-center gap-2 text-slate-400 mb-1">
+              <PersonStanding size={14} />
+              <span className="text-xs font-medium">Lidingoloppet</span>
+            </div>
+            <InlineEdit
+              value={profile.race_date_lidingo}
+              onSave={(v) => saveField('race_date_lidingo', v)}
+              label="Datum"
+              type="date"
+            />
+
+            <div className="border-t border-slate-700 pt-3 flex items-center gap-2 text-slate-400 mb-1">
+              <Snowflake size={14} />
+              <span className="text-xs font-medium">Vasaloppet</span>
+            </div>
+            <InlineEdit
+              value={profile.race_date_vasaloppet}
+              onSave={(v) => saveField('race_date_vasaloppet', v)}
+              label="Datum"
+              type="date"
             />
           </div>
         </div>

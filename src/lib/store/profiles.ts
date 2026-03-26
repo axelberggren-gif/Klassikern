@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase';
 import type { Profile } from '@/types/database';
+import { IS_TEST_MODE, getTestProfile, setTestProfile } from '@/lib/test-helpers';
 
 // ---------------------------------------------------------------------------
 // Login (anon-accessible)
@@ -31,6 +32,13 @@ export async function updateCurrentUser(
   userId: string,
   updates: Partial<Profile>
 ): Promise<Profile | null> {
+  if (IS_TEST_MODE) {
+    const current = getTestProfile();
+    const merged = { ...current, ...updates } as Profile;
+    setTestProfile(merged);
+    return merged;
+  }
+
   const supabase = createClient();
   const { data, error } = await supabase
     .from('profiles')
