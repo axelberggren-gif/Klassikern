@@ -12,7 +12,7 @@ function makeSession(partial: Partial<Session>): Session {
     date: partial.date || '2026-03-01',
     duration_minutes: partial.duration_minutes ?? 30,
     distance_km: partial.distance_km ?? null,
-    effort_rating: partial.effort_rating ?? '3',
+    effort_rating: partial.effort_rating ?? 3,
     note: partial.note ?? null,
     ep_earned: partial.ep_earned ?? 10,
     is_bonus: partial.is_bonus ?? false,

@@ -28,7 +28,22 @@ import { useAuth } from '@/lib/auth';
 import { getPermissionState, notify } from '@/lib/notifications';
 import { checkAndAwardBadges } from '@/lib/badge-checker';
 import { updateCurrentUser, getUserBadges, getAllBadges, getUserTrophies, getAllBossDefinitions } from '@/lib/store';
-import type { Badge, UserBadgeWithBadge, BossDefinition, BossTrophyWithBoss, ProfileUpdate } from '@/types/database';
+import type {
+  Badge,
+  UserBadgeWithBadge,
+  BossDefinition,
+  BossTrophyWithBoss,
+  Profile,
+  ProfileUpdate,
+} from '@/types/database';
+
+type GoalField = 'goal_vr_hours' | 'goal_vansbro_minutes' | 'goal_lidingo_hours';
+type RaceDateField =
+  | 'race_date_vattern'
+  | 'race_date_vansbro'
+  | 'race_date_lidingo'
+  | 'race_date_vasaloppet';
+type EditableProfileField = 'display_name' | GoalField | RaceDateField;
 
 function InlineEdit({
   value,
@@ -133,12 +148,6 @@ function InlineEdit({
     </div>
   );
 }
-
-type RaceDateField =
-  | 'race_date_vattern'
-  | 'race_date_vansbro'
-  | 'race_date_lidingo'
-  | 'race_date_vasaloppet';
 
 function RaceDateEdit({
   value,
@@ -274,33 +283,30 @@ function ProfilePageInner() {
 
   const initial = profile.display_name.charAt(0).toUpperCase();
 
-  async function saveField(field: string, value: string) {
+  async function saveField(field: EditableProfileField, value: string) {
     if (!user) return;
 
-    const numericGoalFields = new Set<GoalField>([
-      'goal_vr_hours',
-      'goal_vansbro_minutes',
-      'goal_lidingo_hours',
-    ]);
-    const raceDateFields = new Set<RaceDateField>([
-      'race_date_vattern',
-      'race_date_vansbro',
-      'race_date_lidingo',
-      'race_date_vasaloppet',
-    ]);
-
     let parsed: string | number = value;
-    if (numericGoalFields.has(field)) {
+    if (
+      field === 'goal_vr_hours' ||
+      field === 'goal_vansbro_minutes' ||
+      field === 'goal_lidingo_hours'
+    ) {
       parsed = Math.max(1, Number.parseInt(value, 10) || 1);
     } else if (field === 'display_name') {
       parsed = value.trim();
-    } else if (raceDateFields.has(field)) {
+    } else if (
+      field === 'race_date_vattern' ||
+      field === 'race_date_vansbro' ||
+      field === 'race_date_lidingo' ||
+      field === 'race_date_vasaloppet'
+    ) {
       parsed = value;
     }
 
     await updateCurrentUser(
       user.id,
-      { [field]: parsed } as Partial<Pick<Profile, EditableProfileField>>
+      { [field]: parsed } as ProfileUpdate
     );
 
     // Notify on goal changes
