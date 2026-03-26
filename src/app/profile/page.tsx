@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   Zap,
@@ -17,18 +17,18 @@ import {
   Palette,
   LogOut,
   Lock,
-  ChevronRight,
+  Volume2,
+  VolumeX,
+  Mountain,
+  Calendar,
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
-import BadgeUnlockModal, { getBadgeIcon } from '@/components/BadgeUnlockModal';
-import NotificationBell from '@/components/NotificationBell';
-import NotificationSettings from '@/components/NotificationSettings';
+import { getBadgeIcon } from '@/components/BadgeUnlockModal';
 import StravaConnect from '@/components/StravaConnect';
 import { useAuth } from '@/lib/auth';
-import { getPermissionState, notify } from '@/lib/notifications';
-import { checkAndAwardBadges } from '@/lib/badge-checker';
-import { updateCurrentUser, getUserBadges, getAllBadges, getUserTrophies, getAllBossDefinitions } from '@/lib/store';
-import type { Badge, UserBadgeWithBadge, BossDefinition, BossTrophyWithBoss } from '@/types/database';
+import { isBossVoiceMuted, setBossVoiceMuted } from '@/lib/boss-voice';
+import { updateCurrentUser, getUserBadges, getAllBadges, getUserBossTrophies, getAllBossDefinitions } from '@/lib/store';
+import type { Badge, UserBadgeWithBadge, BossDefinition, BossTrophy } from '@/types/database';
 
 function InlineEdit({
   value,
@@ -154,44 +154,110 @@ function PlaceholderRow({
   );
 }
 
-function StravaStatusBanner() {
-  const searchParams = useSearchParams();
-  const stravaStatus = searchParams.get('strava');
-  if (stravaStatus === 'connected') {
+function InlineDateEdit({
+  value,
+  onSave,
+  label,
+}: {
+  value: string | null;
+  onSave: (val: string | null) => Promise<void>;
+  label: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value || '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [editing]);
+
+  useEffect(() => {
+    if (!editing) setDraft(value || '');
+  }, [value, editing]);
+
+  async function commit() {
+    const trimmed = draft.trim();
+    if (trimmed === (value || '')) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    await onSave(trimmed || null);
+    setSaving(false);
+    setEditing(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { setDraft(value || ''); setEditing(false); }
+  }
+
+  const displayValue = value
+    ? new Date(value + 'T00:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })
+    : 'Ej satt';
+
+  if (editing) {
     return (
-      <div className="mx-4 mt-3 rounded-xl px-4 py-3 text-sm font-medium text-white" style={{ backgroundColor: '#FC4C02' }}>
-        ✓ Strava kopplad! Klicka &quot;Synka nu&quot; for att importera dina aktiviteter.
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-slate-400 min-w-[100px]">{label}</span>
+        <input
+          ref={inputRef}
+          type="date"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={handleKeyDown}
+          className="flex-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-sm text-slate-50 outline-none focus:ring-2 focus:ring-emerald-500/20 [color-scheme:dark]"
+        />
+        <button
+          onClick={commit}
+          disabled={saving}
+          className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white"
+        >
+          <Check size={14} />
+        </button>
       </div>
     );
   }
-  if (stravaStatus === 'error') {
-    return (
-      <div className="mx-4 mt-3 rounded-xl bg-rose-500/20 border border-rose-500/30 px-4 py-3 text-sm font-medium text-rose-400">
-        ✗ Strava-koppling misslyckades. Kontrollera att STRAVA_CLIENT_ID och STRAVA_CLIENT_SECRET ar konfigurerade, och att redirect URI matchar i Strava-appen.
-      </div>
-    );
-  }
-  if (stravaStatus === 'denied') {
-    return (
-      <div className="mx-4 mt-3 rounded-xl bg-amber-500/20 border border-amber-500/30 px-4 py-3 text-sm font-medium text-amber-400">
-        Strava-atkomst nekades.
-      </div>
-    );
-  }
-  return null;
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-slate-400 min-w-[100px]">{label}</span>
+      <button
+        onClick={() => setEditing(true)}
+        className="flex flex-1 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 active:bg-slate-700 text-left"
+      >
+        <Calendar size={13} className="text-slate-500" />
+        <span className={value ? '' : 'text-slate-500'}>{displayValue}</span>
+        <Pencil size={13} className="text-slate-500 ml-auto flex-shrink-0" />
+      </button>
+      {saved && (
+        <span className="text-xs text-emerald-400 font-medium animate-slide-up">
+          Sparat!
+        </span>
+      )}
+    </div>
+  );
 }
 
-function ProfilePageInner() {
+export default function ProfilePage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user, profile, loading, signOut } = useAuth();
   const [allBadgeDefs, setAllBadgeDefs] = useState<Badge[]>([]);
   const [earnedBadges, setEarnedBadges] = useState<UserBadgeWithBadge[]>([]);
   const [allBossDefs, setAllBossDefs] = useState<BossDefinition[]>([]);
-  const [trophies, setTrophies] = useState<BossTrophyWithBoss[]>([]);
-  const [pendingBadges, setPendingBadges] = useState<Badge[]>([]);
-  const [showNotifSettings, setShowNotifSettings] = useState(false);
-  const stravaCheckedRef = useRef(false);
+  const [trophies, setTrophies] = useState<(BossTrophy & { boss: BossDefinition })[]>([]);
+  const [voiceMuted, setVoiceMuted] = useState(false);
+
+  useEffect(() => {
+    setVoiceMuted(isBossVoiceMuted());
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -199,7 +265,7 @@ function ProfilePageInner() {
       getAllBadges(),
       getUserBadges(user.id),
       getAllBossDefinitions(),
-      getUserTrophies(user.id),
+      getUserBossTrophies(user.id),
     ]).then(([badges, userBadges, bossDefs, userTrophies]) => {
       setAllBadgeDefs(badges);
       setEarnedBadges(userBadges);
@@ -207,29 +273,6 @@ function ProfilePageInner() {
       setTrophies(userTrophies);
     });
   }, [user]);
-
-  // Award Strava badge immediately after OAuth callback
-  useEffect(() => {
-    if (!user || stravaCheckedRef.current) return;
-    if (searchParams.get('strava') !== 'connected') return;
-    stravaCheckedRef.current = true;
-
-    checkAndAwardBadges(user.id).then(async (newBadgeNames) => {
-      if (newBadgeNames.length === 0) return;
-      // Fetch full badge objects for the modal
-      const allBadges = await getAllBadges();
-      const newBadgeObjects = allBadges.filter((b) => newBadgeNames.includes(b.name));
-      setPendingBadges(newBadgeObjects);
-      // Refresh earned badges list
-      getUserBadges(user.id).then(setEarnedBadges);
-    });
-  }, [user, searchParams]);
-
-  function handleBadgesEarned(badgeNames: string[]) {
-    const newBadgeObjects = allBadgeDefs.filter((b) => badgeNames.includes(b.name));
-    setPendingBadges((prev) => [...prev, ...newBadgeObjects]);
-    getUserBadges(user!.id).then(setEarnedBadges);
-  }
 
   if (loading || !profile) return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -254,45 +297,24 @@ function ProfilePageInner() {
     const parsed =
       field === 'display_name' ? value : Math.max(1, parseInt(value) || 1);
     await updateCurrentUser(user.id, { [field]: parsed });
+  }
 
-    // Notify on goal changes
-    if (field !== 'display_name' && profile) {
-      const goalLabels: Record<string, string> = {
-        goal_vr_hours: 'Vatternrundan',
-        goal_vansbro_minutes: 'Vansbrosimningen',
-        goal_lidingo_hours: 'Lidingoloppet',
-      };
-      const label = goalLabels[field];
-      if (label) {
-        notify(
-          'goal_updated',
-          profile.notification_preferences,
-          'Mal uppdaterat',
-          `${label}: ${parsed}${field.includes('hours') ? ' timmar' : ' minuter'}`,
-          'goal-updated',
-          { url: '/profile', userId: user.id }
-        );
-      }
-    }
+  async function saveDateField(field: string, value: string | null) {
+    if (!user) return;
+    await updateCurrentUser(user.id, { [field]: value });
   }
 
   return (
     <AppShell>
       {/* Header */}
       <div className="bg-slate-900 px-5 pt-12 pb-4 border-b border-slate-700">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => router.back()} className="text-slate-400">
-              <ArrowLeft size={24} />
-            </button>
-            <h1 className="text-xl font-bold text-slate-50">Profil</h1>
-          </div>
-          <NotificationBell />
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.back()} className="text-slate-400">
+            <ArrowLeft size={24} />
+          </button>
+          <h1 className="text-xl font-bold text-slate-50">Profil</h1>
         </div>
       </div>
-
-      {/* Strava OAuth status banner */}
-      <StravaStatusBanner />
 
       <div className="flex flex-col gap-4 px-4 py-4">
         {/* Profile header */}
@@ -468,12 +490,11 @@ function ProfilePageInner() {
                     </span>
                     {earned && trophy && (
                       <div className="flex flex-col items-center gap-0.5">
-                        <span className="text-[9px] text-slate-400">
-                          {trophy.damage_dealt} skada
-                        </span>
-                        <span className="text-[9px] text-slate-400">
-                          Vecka {trophy.week_number}
-                        </span>
+                        {trophy.bonus_ep > 0 && (
+                          <span className="text-[9px] text-slate-400">
+                            +{trophy.bonus_ep} EP
+                          </span>
+                        )}
                         {trophy.is_killing_blow && (
                           <span className="text-[9px] font-bold text-emerald-400">
                             ⚔️ Dodsstot
@@ -532,6 +553,54 @@ function ProfilePageInner() {
           </div>
         </div>
 
+        {/* Race dates card */}
+        <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
+          <h3 className="text-sm font-semibold text-slate-200 mb-4">
+            Tävlingsdatum
+          </h3>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2 text-slate-400 mb-1">
+              <Bike size={14} />
+              <span className="text-xs font-medium">Vätternrundan</span>
+            </div>
+            <InlineDateEdit
+              value={profile.race_date_vr}
+              onSave={(v) => saveDateField('race_date_vr', v)}
+              label="Datum"
+            />
+
+            <div className="border-t border-slate-700 pt-3 flex items-center gap-2 text-slate-400 mb-1">
+              <Waves size={14} />
+              <span className="text-xs font-medium">Vansbrosimningen</span>
+            </div>
+            <InlineDateEdit
+              value={profile.race_date_vansbro}
+              onSave={(v) => saveDateField('race_date_vansbro', v)}
+              label="Datum"
+            />
+
+            <div className="border-t border-slate-700 pt-3 flex items-center gap-2 text-slate-400 mb-1">
+              <PersonStanding size={14} />
+              <span className="text-xs font-medium">Lidingöloppet</span>
+            </div>
+            <InlineDateEdit
+              value={profile.race_date_lidingo}
+              onSave={(v) => saveDateField('race_date_lidingo', v)}
+              label="Datum"
+            />
+
+            <div className="border-t border-slate-700 pt-3 flex items-center gap-2 text-slate-400 mb-1">
+              <Mountain size={14} />
+              <span className="text-xs font-medium">Vasaloppet</span>
+            </div>
+            <InlineDateEdit
+              value={profile.race_date_vasaloppet}
+              onSave={(v) => saveDateField('race_date_vasaloppet', v)}
+              label="Datum"
+            />
+          </div>
+        </div>
+
         {/* Edit profile card */}
         <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
           <h3 className="text-sm font-semibold text-slate-200 mb-4">
@@ -545,40 +614,45 @@ function ProfilePageInner() {
         </div>
 
         {/* Strava connection */}
-        {user && (
-          <StravaConnect userId={user.id} onBadgesEarned={handleBadgesEarned} />
-        )}
+        {user && <StravaConnect userId={user.id} />}
 
-        {/* Settings card / Notification settings */}
-        {showNotifSettings ? (
-          <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
-            <NotificationSettings onBack={() => setShowNotifSettings(false)} />
-          </div>
-        ) : (
-          <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
-            <h3 className="text-sm font-semibold text-slate-200 mb-2">
-              Installningar
-            </h3>
-            <div className="divide-y divide-slate-700">
-              <button
-                onClick={() => setShowNotifSettings(true)}
-                className="flex w-full items-center gap-3 py-3 text-left"
-              >
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800">
-                  <Bell size={18} className={getPermissionState() === 'granted' ? 'text-emerald-400' : 'text-slate-400'} />
-                </div>
-                <span className="flex-1 text-sm text-slate-200">Notifikationer</span>
-                {getPermissionState() === 'granted' && (
-                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
-                    Aktiva
-                  </span>
+        {/* Settings card */}
+        <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
+          <h3 className="text-sm font-semibold text-slate-200 mb-2">
+            Installningar
+          </h3>
+          <div className="divide-y divide-slate-700">
+            {/* Boss voice mute toggle */}
+            <div className="flex items-center gap-3 py-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800">
+                {voiceMuted ? (
+                  <VolumeX size={18} className="text-slate-400" />
+                ) : (
+                  <Volume2 size={18} className="text-emerald-400" />
                 )}
-                <ChevronRight size={16} className="text-slate-500" />
+              </div>
+              <span className="flex-1 text-sm text-slate-200">Bossroster</span>
+              <button
+                onClick={() => {
+                  const next = !voiceMuted;
+                  setVoiceMuted(next);
+                  setBossVoiceMuted(next);
+                }}
+                className={`relative h-7 w-12 rounded-full transition-colors ${
+                  voiceMuted ? 'bg-slate-700' : 'bg-emerald-500'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
+                    voiceMuted ? '' : 'translate-x-5'
+                  }`}
+                />
               </button>
-              <PlaceholderRow icon={Palette} label="Tema" />
             </div>
+            <PlaceholderRow icon={Bell} label="Notifikationer" />
+            <PlaceholderRow icon={Palette} label="Tema" />
           </div>
-        )}
+        </div>
 
         {/* Sign out */}
         <button
@@ -591,22 +665,6 @@ function ProfilePageInner() {
 
         <div className="h-4" />
       </div>
-
-      {/* Badge unlock modals — shown one at a time */}
-      {pendingBadges.length > 0 && (
-        <BadgeUnlockModal
-          badge={pendingBadges[0]}
-          onDismiss={() => setPendingBadges((prev) => prev.slice(1))}
-        />
-      )}
     </AppShell>
-  );
-}
-
-export default function ProfilePage() {
-  return (
-    <Suspense fallback={null}>
-      <ProfilePageInner />
-    </Suspense>
   );
 }

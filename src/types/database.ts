@@ -88,6 +88,10 @@ export interface Database {
           longest_streak: number;
           streak_freezes_remaining: number;
           notification_preferences: NotificationPreferences;
+          race_date_vr: string | null;
+          race_date_vansbro: string | null;
+          race_date_lidingo: string | null;
+          race_date_vasaloppet: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -104,6 +108,10 @@ export interface Database {
           longest_streak?: number;
           streak_freezes_remaining?: number;
           notification_preferences?: NotificationPreferences;
+          race_date_vr?: string | null;
+          race_date_vansbro?: string | null;
+          race_date_lidingo?: string | null;
+          race_date_vasaloppet?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -120,6 +128,10 @@ export interface Database {
           longest_streak?: number;
           streak_freezes_remaining?: number;
           notification_preferences?: NotificationPreferences;
+          race_date_vr?: string | null;
+          race_date_vansbro?: string | null;
+          race_date_lidingo?: string | null;
+          race_date_vasaloppet?: string | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -938,3 +950,32 @@ export interface PowerRanking {
   previousRank: number | null;
   currentRank: number;
 }
+
+// ---------------------------------------------------------------------------
+// Weekly challenge types
+// ---------------------------------------------------------------------------
+
+export type ChallengeType =
+  | 'total_sessions'
+  | 'total_duration'
+  | 'total_distance'
+  | 'total_ep'
+  | 'sport_sessions';
+
+export interface ChallengeParticipantProgress {
+  userId: string;
+  displayName: string;
+  value: number;
+}
+
+export interface ChallengeTemplate {
+  title: string;
+  description: string;
+  challengeType: ChallengeType;
+  targetValue: number;
+  /** For sport_sessions type — which sport counts */
+  sportFilter?: SportType;
+}
+
+export type WeeklyChallengeInsert = Database['public']['Tables']['weekly_challenges']['Insert'];
+export type WeeklyChallengeUpdate = Database['public']['Tables']['weekly_challenges']['Update'];

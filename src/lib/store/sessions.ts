@@ -3,6 +3,7 @@ import { calculateEP } from '../ep-calculator';
 import { checkAndAwardBadges } from '../badge-checker';
 import { notify } from '../notifications';
 import { SPORT_CONFIG } from '../sport-config';
+import { detectPersonalRecords, type PersonalRecord } from '../pr-checker';
 import type { Session, Profile, SportType, EffortRating, NotificationPreferences } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -27,6 +28,7 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 export interface LogSessionResult {
   session: Session;
   newBadges: string[];
+  personalRecords: PersonalRecord[];
 }
 
 export async function uploadSessionPhoto(
@@ -131,7 +133,6 @@ export async function logSession(params: {
   const prefs = params.currentProfile.notification_preferences;
   const sportLabel = SPORT_CONFIG[params.sportType]?.label ?? params.sportType;
 
-  // Session logged
   notify(
     'session_logged',
     prefs,
@@ -141,7 +142,6 @@ export async function logSession(params: {
     { url: '/', userId: params.userId }
   );
 
-  // Streak milestones
   const newStreak2 = params.currentProfile.current_streak + 1;
   if ([3, 5, 7, 10, 14, 21, 30, 50, 100].includes(newStreak2)) {
     notify(
@@ -156,7 +156,6 @@ export async function logSession(params: {
     );
   }
 
-  // Badge notifications
   for (const badgeName of newBadges) {
     notify(
       'badge_unlocked',
@@ -168,5 +167,9 @@ export async function logSession(params: {
     );
   }
 
-  return { session, newBadges };
+  // Check for personal records
+  const previousSessions = await getUserSessions(params.userId);
+  const personalRecords = detectPersonalRecords(session, previousSessions);
+
+  return { session, newBadges, personalRecords };
 }

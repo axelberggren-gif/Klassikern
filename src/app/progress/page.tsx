@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Timer, Trophy, Target } from 'lucide-react';
+import { Timer, Trophy, Target, Award } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import NotificationBell from '@/components/NotificationBell';
 import { useAuth } from '@/lib/auth';
-import { getUserStats } from '@/lib/store';
+import { getUserStats, getUserSessions } from '@/lib/store';
+import { computeAllTimeRecords, type SportRecords } from '@/lib/pr-checker';
+import { SPORT_CONFIG } from '@/lib/sport-config';
 
 interface RaceCardProps {
   icon: string;
@@ -92,10 +94,14 @@ type StatsResult = Awaited<ReturnType<typeof getUserStats>>;
 export default function ProgressPage() {
   const { user, profile, loading } = useAuth();
   const [stats, setStats] = useState<StatsResult | null>(null);
+  const [records, setRecords] = useState<SportRecords[]>([]);
 
   useEffect(() => {
     if (!user) return;
     getUserStats(user.id).then(setStats);
+    getUserSessions(user.id).then((sessions) => {
+      setRecords(computeAllTimeRecords(sessions));
+    });
   }, [user]);
 
   if (loading || !profile || !stats) return (
@@ -194,6 +200,62 @@ export default function ProgressPage() {
           progressPercent={(stats.running.totalMinutes / (3 * 60)) * 100}
           color="#22C55E"
         />
+
+        {/* Personal Records */}
+        {records.length > 0 && (
+          <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-400/15">
+                <Award size={16} className="text-amber-400" />
+              </div>
+              <h3 className="text-sm font-semibold text-slate-200">Personliga rekord</h3>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              {records.map((rec) => {
+                const sport = SPORT_CONFIG[rec.sportType];
+                return (
+                  <div key={rec.sportType}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">{sport.icon}</span>
+                      <span className="text-sm font-semibold text-slate-200">{sport.label}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {rec.bestEP && (
+                        <div className="rounded-xl bg-slate-800 px-3 py-2">
+                          <p className="text-xs text-slate-400">Högsta EP</p>
+                          <p className="text-sm font-bold text-amber-300">{rec.bestEP.value} EP</p>
+                          <p className="text-[10px] text-slate-500">{rec.bestEP.date}</p>
+                        </div>
+                      )}
+                      {rec.longestDuration && (
+                        <div className="rounded-xl bg-slate-800 px-3 py-2">
+                          <p className="text-xs text-slate-400">Längsta pass</p>
+                          <p className="text-sm font-bold text-amber-300">{rec.longestDuration.value} min</p>
+                          <p className="text-[10px] text-slate-500">{rec.longestDuration.date}</p>
+                        </div>
+                      )}
+                      {rec.longestDistance && (
+                        <div className="rounded-xl bg-slate-800 px-3 py-2">
+                          <p className="text-xs text-slate-400">Längsta distans</p>
+                          <p className="text-sm font-bold text-amber-300">{rec.longestDistance.formatted}</p>
+                          <p className="text-[10px] text-slate-500">{rec.longestDistance.date}</p>
+                        </div>
+                      )}
+                      {rec.fastestPace && (
+                        <div className="rounded-xl bg-slate-800 px-3 py-2">
+                          <p className="text-xs text-slate-400">Snabbaste tempo</p>
+                          <p className="text-sm font-bold text-amber-300">{rec.fastestPace.formatted}</p>
+                          <p className="text-[10px] text-slate-500">{rec.fastestPace.date}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Overall stats */}
         <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">

@@ -8,6 +8,7 @@ import NotificationBell from '@/components/NotificationBell';
 import StreakBadge from '@/components/dashboard/StreakBadge';
 import TodayCard from '@/components/dashboard/TodayCard';
 import WeekSummary from '@/components/dashboard/WeekSummary';
+import RaceCountdown from '@/components/dashboard/RaceCountdown';
 import BossCard from '@/components/boss/BossCard';
 import BossTimeline from '@/components/boss/BossTimeline';
 import BossDefeatCinematic from '@/components/boss/BossDefeatCinematic';
@@ -19,6 +20,7 @@ import WeeklyHistory from '@/components/group/WeeklyHistory';
 import SportLeaderboard from '@/components/group/SportLeaderboard';
 import HeadToHead from '@/components/group/HeadToHead';
 import CallOutChallenge from '@/components/group/CallOutChallenge';
+import WeeklyChallengeCard from '@/components/dashboard/WeeklyChallengeCard';
 import { useAuth } from '@/lib/auth';
 import {
   getGroupMembers,
@@ -39,10 +41,13 @@ import {
   getWeeklyWinners,
   getSportLeaderboard,
   getPowerRankings,
+  getActiveChallenge,
+  getChallengeProgress,
 } from '@/lib/store';
 import type { WeeklyEPInfo, AttackBossWeeklyResult } from '@/lib/store';
 import type { WeeklyWinnerResult, SportLeaderboardEntry } from '@/lib/store/leaderboard';
-import { getCurrentWeekNumber, getPlanForWeek } from '@/lib/training-plan';
+import { getCurrentWeekNumber, getPlanForWeek, TRAINING_PLAN } from '@/lib/training-plan';
+import { getWeekRange } from '@/lib/date-utils';
 import type {
   Profile,
   PlannedSession,
@@ -53,6 +58,8 @@ import type {
   ChallengeMetric,
   CallOutChallengeWithUsers,
   PowerRanking,
+  WeeklyChallenge,
+  ChallengeParticipantProgress,
 } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -215,6 +222,7 @@ export default function DashboardPage() {
   const [weekSessions, setWeekSessions] = useState<Session[]>([]);
   const [feed, setFeed] = useState<EnhancedFeedItem[]>([]);
   const [weekNumber, setWeekNumber] = useState(1);
+  const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [totalSessions, setTotalSessions] = useState(0);
   const [bossEncounter, setBossEncounter] = useState<BossEncounterWithBoss | null>(null);
   const [bossAttacks, setBossAttacks] = useState<BossAttackWithUser[]>([]);
@@ -222,6 +230,8 @@ export default function DashboardPage() {
   const [weeklyEP, setWeeklyEP] = useState<WeeklyEPInfo | null>(null);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [defeatResult, setDefeatResult] = useState<AttackBossWeeklyResult | null>(null);
+  const [challenge, setChallenge] = useState<WeeklyChallenge | null>(null);
+  const [challengeProgress, setChallengeProgress] = useState<ChallengeParticipantProgress[]>([]);
 
   // Tabs
   const [activeTab, setActiveTab] = useState<DashboardTab>('feed');
@@ -262,6 +272,7 @@ export default function DashboardPage() {
         getUserGroupId(user.id),
       ]);
 
+      setAllSessions(sessions);
       setTotalSessions(sessions.length);
       setTodaySessions(sessions.filter((s) => s.date === today));
 
@@ -281,14 +292,16 @@ export default function DashboardPage() {
       setGroupId(userGroupId);
 
       if (userGroupId) {
-        const [feedData, encounter, history] = await Promise.all([
+        const [feedData, encounter, history, activeChallenge] = await Promise.all([
           getActivityFeed(userGroupId),
           getActiveBossEncounter(userGroupId),
           getGroupBossHistory(userGroupId),
+          getActiveChallenge(userGroupId),
         ]);
         setFeed(feedData as EnhancedFeedItem[]);
         setBossEncounter(encounter);
         setBossHistory(history);
+        setChallenge(activeChallenge);
 
         let dMap = new Map<string, number>();
         if (encounter) {
@@ -304,6 +317,12 @@ export default function DashboardPage() {
           }
         }
         setDamageMap(dMap);
+
+        // Load challenge progress
+        if (activeChallenge && groupMembers.length > 0) {
+          const progress = await getChallengeProgress(activeChallenge, groupMembers);
+          setChallengeProgress(progress);
+        }
 
         // Load leaderboard data in background
         const now = new Date();
@@ -561,6 +580,22 @@ export default function DashboardPage() {
       </div>
 
       <div className="flex flex-col gap-4 px-4">
+        {/* Weekly Recap Banner */}
+        <Link
+          href="/recap"
+          className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-900/30 via-slate-900 to-violet-900/30 p-4 flex items-center gap-3 group"
+        >
+          <div className="animate-recap-shimmer absolute inset-0 pointer-events-none" />
+          <div className="text-2xl animate-recap-float">&#9876;&#65039;</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-50">Veckans Recap</p>
+            <p className="text-xs text-slate-400">Se din Kapitel {weekNumber} sammanfattning</p>
+          </div>
+          <span className="text-xs font-semibold text-emerald-400 group-hover:text-emerald-300 whitespace-nowrap">
+            Visa &rarr;
+          </span>
+        </Link>
+
         {/* Boss Card */}
         <BossCard encounter={bossEncounter} attacks={bossAttacks} weeklyEP={weeklyEP} onAttack={handleBossAttack} />
 
@@ -573,6 +608,18 @@ export default function DashboardPage() {
           currentEncounter={bossEncounter}
           currentWeek={weekNumber}
         />
+
+        {/* Race countdown */}
+        <RaceCountdown profile={profile} sessions={allSessions} plan={TRAINING_PLAN} />
+
+        {/* Weekly challenge */}
+        {challenge && (
+          <WeeklyChallengeCard
+            challenge={challenge}
+            progress={challengeProgress}
+            currentUserId={user!.id}
+          />
+        )}
 
         {/* Today's session card */}
         <TodayCard todayPlan={todayPlan} todaySessions={todaySessions} />

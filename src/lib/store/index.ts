@@ -16,6 +16,7 @@ export {
 
 export { getUserSessions, logSession, uploadSessionPhoto } from './sessions';
 export type { LogSessionResult } from './sessions';
+export type { PersonalRecord } from '../pr-checker';
 
 export {
   getActivityFeed,
@@ -34,6 +35,15 @@ export { getUserStats, getWeekCompletionStats } from './stats';
 export { getAllBadges, getUserBadges } from './badges';
 
 export { getStravaConnection, disconnectStrava } from './strava';
+
+export {
+  getActiveChallenge,
+  getChallengeHistory as getWeeklyChallengeHistory,
+  createChallenge,
+  resolveChallenge,
+  getChallengeProgress,
+  getChallengeUnit,
+} from './challenges';
 
 export {
   getActiveBossEncounter,
