@@ -44,6 +44,35 @@ export async function getActiveBossEncounter(
   } as BossEncounterWithBoss;
 }
 
+/**
+ * Get the most recently defeated boss encounter for a group.
+ * Used to show the defeated boss card between kills and next boss spawn.
+ */
+export async function getLatestDefeatedEncounter(
+  groupId: string
+): Promise<BossEncounterWithBoss | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('boss_encounters')
+    .select('*, boss_definitions(*)')
+    .eq('group_id', groupId)
+    .eq('status', 'defeated')
+    .order('defeated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    if (error) console.error('Error fetching latest defeated encounter:', error);
+    return null;
+  }
+
+  const { boss_definitions: boss, ...encounterFields } = data as Record<string, unknown>;
+  return {
+    ...encounterFields,
+    boss: boss as BossDefinition,
+  } as BossEncounterWithBoss;
+}
+
 export async function getBossAttacks(encounterId: string): Promise<BossAttack[]> {
   const supabase = createClient();
   const { data, error } = await supabase

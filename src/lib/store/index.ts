@@ -47,6 +47,7 @@ export {
 
 export {
   getActiveBossEncounter,
+  getLatestDefeatedEncounter,
   getBossAttacks,
   getUniqueAttackerCount,
   attackBoss,

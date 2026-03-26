@@ -28,6 +28,7 @@ import {
   getActivityFeed,
   getUserGroupId,
   getActiveBossEncounter,
+  getLatestDefeatedEncounter,
   getEncounterAttacks,
   getGroupBossHistory,
   getUnusedWeeklyEP,
@@ -225,6 +226,7 @@ export default function DashboardPage() {
   const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [totalSessions, setTotalSessions] = useState(0);
   const [bossEncounter, setBossEncounter] = useState<BossEncounterWithBoss | null>(null);
+  const [defeatedEncounter, setDefeatedEncounter] = useState<BossEncounterWithBoss | null>(null);
   const [bossAttacks, setBossAttacks] = useState<BossAttackWithUser[]>([]);
   const [bossHistory, setBossHistory] = useState<BossEncounterWithBoss[]>([]);
   const [weeklyEP, setWeeklyEP] = useState<WeeklyEPInfo | null>(null);
@@ -302,6 +304,14 @@ export default function DashboardPage() {
         setBossEncounter(encounter);
         setBossHistory(history);
         setChallenge(activeChallenge);
+
+        // If no active boss, fetch the most recently defeated one for the card
+        if (!encounter) {
+          const defeated = await getLatestDefeatedEncounter(userGroupId);
+          setDefeatedEncounter(defeated);
+        } else {
+          setDefeatedEncounter(null);
+        }
 
         let dMap = new Map<string, number>();
         if (encounter) {
@@ -529,8 +539,12 @@ export default function DashboardPage() {
         setBossAttacks(attacks);
         setWeeklyEP(epInfo);
       } else {
-        const history = await getGroupBossHistory(groupId);
+        const [history, defeated] = await Promise.all([
+          getGroupBossHistory(groupId),
+          getLatestDefeatedEncounter(groupId),
+        ]);
         setBossHistory(history);
+        setDefeatedEncounter(defeated);
         setWeeklyEP(null);
       }
     }
@@ -597,7 +611,7 @@ export default function DashboardPage() {
         </Link>
 
         {/* Boss Card */}
-        <BossCard encounter={bossEncounter} attacks={bossAttacks} weeklyEP={weeklyEP} onAttack={handleBossAttack} />
+        <BossCard encounter={bossEncounter} defeatedEncounter={defeatedEncounter} attacks={bossAttacks} weeklyEP={weeklyEP} onAttack={handleBossAttack} />
 
         {/* Compact Damage Leaderboard */}
         <DamageLeaderboard entries={damageEntries} currentUserId={user!.id} />
