@@ -97,12 +97,19 @@ function handleFeedEvent(
     }
 
     case 'boss_defeated': {
-      const bossEmoji = data.boss_emoji as string;
+      const bossEmoji =
+        typeof data.boss_emoji === 'string' && data.boss_emoji.trim().length > 0
+          ? data.boss_emoji
+          : '🏆';
+      const bossName =
+        typeof data.boss_name === 'string' && data.boss_name.trim().length > 0
+          ? data.boss_name
+          : 'Bossen';
       const totalAttackers = data.total_attackers as number;
       notify(
         'boss_defeated',
         prefs,
-        `${bossEmoji} Boss besegrad!`,
+        `${bossEmoji} ${bossName} besegrad!`,
         `Gruppen besegrade bossen med ${totalAttackers} attackerare`,
         'boss-defeated',
         { url: '/group', userId: currentUserId }
