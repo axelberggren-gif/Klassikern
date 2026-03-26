@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { SPORT_CONFIG } from '@/lib/sport-config';
+import { speakBossTaunt, speakBossDefeat, cancelBossSpeech, preloadVoices } from '@/lib/boss-voice';
 import type { Session } from '@/types/database';
 import type { PersonalRecord } from '@/lib/pr-checker';
 
@@ -13,6 +14,7 @@ interface SessionRewardProps {
     isCritical: boolean;
     bossEmoji: string;
     bossName: string;
+    bossLevel: number;
     isKillingBlow: boolean;
     remainingHP: number;
     maxHP: number;
@@ -22,39 +24,165 @@ interface SessionRewardProps {
 
 export default function SessionReward({ session, personalRecords = [], bossDamage, onDone }: SessionRewardProps) {
   const [show, setShow] = useState(false);
+  const [phase, setPhase] = useState<1 | 2>(1);
+  const [displayedDamage, setDisplayedDamage] = useState(0);
+  const [showCriticalFlash, setShowCriticalFlash] = useState(false);
+  const [showKillingBlow, setShowKillingBlow] = useState(false);
+  const [showScreenShake, setShowScreenShake] = useState(false);
+  const [showParticles, setShowParticles] = useState(false);
   const sport = SPORT_CONFIG[session.sport_type];
+  const damageCounterRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const particlesRef = useRef(
+    Array.from({ length: 18 }, () => ({
+      angle: Math.random() * 360,
+      distance: 40 + Math.random() * 40,
+      size: 2 + Math.random() * 2,
+      color: ['#EF4444', '#F97316', '#EAB308', '#FB923C', '#FBBF24', '#DC2626'][Math.floor(Math.random() * 6)],
+      delay: Math.random() * 0.3,
+      duration: 0.7 + Math.random() * 0.5,
+    }))
+  );
+
+  const cleanup = useCallback(() => {
+    if (damageCounterRef.current) {
+      clearInterval(damageCounterRef.current);
+      damageCounterRef.current = null;
+    }
+    cancelBossSpeech();
+  }, []);
 
   useEffect(() => {
     setShow(true);
-    const timer = setTimeout(() => onDone(), 3000);
-    return () => clearTimeout(timer);
-  }, [onDone]);
+
+    if (!bossDamage) {
+      // No boss damage — keep original 3s timer
+      const timer = setTimeout(() => onDone(), 3000);
+      return () => clearTimeout(timer);
+    }
+
+    // Phase 1: EP celebration (0–2.5s)
+    const phase2Timer = setTimeout(() => {
+      setPhase(2);
+    }, 2500);
+
+    // Auto-close at 6s
+    const closeTimer = setTimeout(() => {
+      cleanup();
+      onDone();
+    }, 6000);
+
+    return () => {
+      clearTimeout(phase2Timer);
+      clearTimeout(closeTimer);
+      cleanup();
+    };
+  }, [onDone, bossDamage, cleanup]);
+
+  // Preload voices on mount
+  useEffect(() => {
+    preloadVoices();
+  }, []);
+
+  // Phase 2: trigger particles + boss taunt voice
+  useEffect(() => {
+    if (phase === 2 && bossDamage) {
+      setShowParticles(true);
+      speakBossTaunt(bossDamage.bossLevel);
+    }
+  }, [phase, bossDamage]);
+
+  // Phase 2: damage counter animation
+  useEffect(() => {
+    if (phase !== 2 || !bossDamage) return;
+
+    const target = bossDamage.damage;
+    const duration = 1200; // ms to count up
+    const steps = 30;
+    const stepTime = duration / steps;
+    let current = 0;
+
+    damageCounterRef.current = setInterval(() => {
+      current += Math.ceil(target / steps);
+      if (current >= target) {
+        current = target;
+        if (damageCounterRef.current) {
+          clearInterval(damageCounterRef.current);
+          damageCounterRef.current = null;
+        }
+
+        // After counter finishes: critical flash
+        if (bossDamage.isCritical) {
+          setShowCriticalFlash(true);
+          setTimeout(() => setShowCriticalFlash(false), 600);
+        }
+
+        // After counter finishes: killing blow (with screen shake first)
+        if (bossDamage.isKillingBlow) {
+          const baseDelay = bossDamage.isCritical ? 700 : 200;
+          setTimeout(() => setShowScreenShake(true), baseDelay);
+          setTimeout(() => {
+            setShowScreenShake(false);
+            setShowKillingBlow(true);
+            // Play boss defeat speech on killing blow
+            speakBossDefeat(bossDamage.bossLevel);
+          }, baseDelay + 500);
+        }
+      }
+      setDisplayedDamage(current);
+    }, stepTime);
+
+    return () => {
+      if (damageCounterRef.current) {
+        clearInterval(damageCounterRef.current);
+        damageCounterRef.current = null;
+      }
+    };
+  }, [phase, bossDamage]);
 
   if (!show) return null;
 
+  const hpPercentage = bossDamage
+    ? Math.max(0, (bossDamage.remainingHP / bossDamage.maxHP) * 100)
+    : 0;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onDone}>
-      <div className="animate-slide-up flex flex-col items-center gap-4 rounded-3xl bg-slate-900 border border-slate-700 p-8 shadow-2xl mx-8">
-        {/* Confetti dots */}
-        <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
-          {Array.from({ length: 20 }).map((_, i) => (
-            <div
-              key={i}
-              className="absolute animate-confetti"
-              style={{
-                left: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 0.5}s`,
-                animationDuration: `${1.5 + Math.random()}s`,
-              }}
-            >
-              <div
-                className="h-2 w-2 rounded-full"
-                style={{
-                  backgroundColor: ['#10B981', '#3B82F6', '#22C55E', '#FBBF24', '#8B5CF6'][
-                    Math.floor(Math.random() * 5)
-                  ],
-                }}
-              />
+    <>
+      {/* Critical hit yellow flash overlay */}
+      {showCriticalFlash && (
+        <div
+          className="fixed inset-0 z-[60] pointer-events-none bg-yellow-300"
+          style={{ animation: 'critical-flash 0.6s ease-out forwards' }}
+        />
+      )}
+
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+        onClick={() => { cleanup(); onDone(); }}
+      >
+        <div className={`animate-slide-up flex flex-col items-center gap-4 rounded-3xl bg-slate-900 border border-slate-700 p-8 shadow-2xl mx-8 relative overflow-hidden${showScreenShake ? ' animate-screen-shake' : ''}`}>
+          {/* Confetti dots — visible in phase 1 */}
+          {phase === 1 && (
+            <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+              {Array.from({ length: 20 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute animate-confetti"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    animationDelay: `${Math.random() * 0.5}s`,
+                    animationDuration: `${1.5 + Math.random()}s`,
+                  }}
+                >
+                  <div
+                    className="h-2 w-2 rounded-full"
+                    style={{
+                      backgroundColor: ['#10B981', '#3B82F6', '#22C55E', '#FBBF24', '#8B5CF6'][
+                        Math.floor(Math.random() * 5)
+                      ],
+                    }}
+                  />
+                </div>
+              ))}
             </div>
           )}
 
@@ -78,32 +206,6 @@ export default function SessionReward({ session, personalRecords = [], bossDamag
                 <div className="flex items-center gap-2 rounded-full bg-emerald-500/15 px-4 py-2">
                   <span className="text-emerald-400">&#10003;</span>
                   <span className="text-sm font-medium text-emerald-400">On track!</span>
-                </div>
-              )}
-
-              {/* Personal Record badges */}
-              {personalRecords.length > 0 && (
-                <div className="flex flex-col items-center gap-2 mt-1 w-full">
-                  {personalRecords.map((pr, i) => (
-                    <div
-                      key={pr.category}
-                      className="flex items-center gap-2 rounded-full bg-amber-400/15 border border-amber-400/30 px-4 py-2 animate-slide-up"
-                      style={{ animationDelay: `${0.3 + i * 0.15}s`, animationFillMode: 'both' }}
-                    >
-                      <span className="text-amber-400 text-base">&#127942;</span>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-amber-300">
-                          Nytt rekord! {pr.label}
-                        </span>
-                        <span className="text-xs text-amber-400/80">
-                          {pr.formattedValue}
-                          {pr.formattedPrevious && (
-                            <> <span className="text-slate-500">&#8592;</span> {pr.formattedPrevious}</>
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               )}
             </>
@@ -241,6 +343,6 @@ export default function SessionReward({ session, personalRecords = [], bossDamag
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }
