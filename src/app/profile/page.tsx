@@ -19,6 +19,8 @@ import {
   Lock,
   Volume2,
   VolumeX,
+  Mountain,
+  Calendar,
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { getBadgeIcon } from '@/components/BadgeUnlockModal';
@@ -152,6 +154,98 @@ function PlaceholderRow({
   );
 }
 
+function InlineDateEdit({
+  value,
+  onSave,
+  label,
+}: {
+  value: string | null;
+  onSave: (val: string | null) => Promise<void>;
+  label: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value || '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [editing]);
+
+  useEffect(() => {
+    if (!editing) setDraft(value || '');
+  }, [value, editing]);
+
+  async function commit() {
+    const trimmed = draft.trim();
+    if (trimmed === (value || '')) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    await onSave(trimmed || null);
+    setSaving(false);
+    setEditing(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { setDraft(value || ''); setEditing(false); }
+  }
+
+  const displayValue = value
+    ? new Date(value + 'T00:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' })
+    : 'Ej satt';
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-slate-400 min-w-[100px]">{label}</span>
+        <input
+          ref={inputRef}
+          type="date"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={handleKeyDown}
+          className="flex-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-sm text-slate-50 outline-none focus:ring-2 focus:ring-emerald-500/20 [color-scheme:dark]"
+        />
+        <button
+          onClick={commit}
+          disabled={saving}
+          className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white"
+        >
+          <Check size={14} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-slate-400 min-w-[100px]">{label}</span>
+      <button
+        onClick={() => setEditing(true)}
+        className="flex flex-1 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 active:bg-slate-700 text-left"
+      >
+        <Calendar size={13} className="text-slate-500" />
+        <span className={value ? '' : 'text-slate-500'}>{displayValue}</span>
+        <Pencil size={13} className="text-slate-500 ml-auto flex-shrink-0" />
+      </button>
+      {saved && (
+        <span className="text-xs text-emerald-400 font-medium animate-slide-up">
+          Sparat!
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const { user, profile, loading, signOut } = useAuth();
@@ -203,6 +297,11 @@ export default function ProfilePage() {
     const parsed =
       field === 'display_name' ? value : Math.max(1, parseInt(value) || 1);
     await updateCurrentUser(user.id, { [field]: parsed });
+  }
+
+  async function saveDateField(field: string, value: string | null) {
+    if (!user) return;
+    await updateCurrentUser(user.id, { [field]: value });
   }
 
   return (
@@ -450,6 +549,54 @@ export default function ProfilePage() {
               label="Maltid"
               suffix="timmar"
               type="number"
+            />
+          </div>
+        </div>
+
+        {/* Race dates card */}
+        <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
+          <h3 className="text-sm font-semibold text-slate-200 mb-4">
+            Tävlingsdatum
+          </h3>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2 text-slate-400 mb-1">
+              <Bike size={14} />
+              <span className="text-xs font-medium">Vätternrundan</span>
+            </div>
+            <InlineDateEdit
+              value={profile.race_date_vr}
+              onSave={(v) => saveDateField('race_date_vr', v)}
+              label="Datum"
+            />
+
+            <div className="border-t border-slate-700 pt-3 flex items-center gap-2 text-slate-400 mb-1">
+              <Waves size={14} />
+              <span className="text-xs font-medium">Vansbrosimningen</span>
+            </div>
+            <InlineDateEdit
+              value={profile.race_date_vansbro}
+              onSave={(v) => saveDateField('race_date_vansbro', v)}
+              label="Datum"
+            />
+
+            <div className="border-t border-slate-700 pt-3 flex items-center gap-2 text-slate-400 mb-1">
+              <PersonStanding size={14} />
+              <span className="text-xs font-medium">Lidingöloppet</span>
+            </div>
+            <InlineDateEdit
+              value={profile.race_date_lidingo}
+              onSave={(v) => saveDateField('race_date_lidingo', v)}
+              label="Datum"
+            />
+
+            <div className="border-t border-slate-700 pt-3 flex items-center gap-2 text-slate-400 mb-1">
+              <Mountain size={14} />
+              <span className="text-xs font-medium">Vasaloppet</span>
+            </div>
+            <InlineDateEdit
+              value={profile.race_date_vasaloppet}
+              onSave={(v) => saveDateField('race_date_vasaloppet', v)}
+              label="Datum"
             />
           </div>
         </div>

@@ -8,6 +8,7 @@ import NotificationBell from '@/components/NotificationBell';
 import StreakBadge from '@/components/dashboard/StreakBadge';
 import TodayCard from '@/components/dashboard/TodayCard';
 import WeekSummary from '@/components/dashboard/WeekSummary';
+import RaceCountdown from '@/components/dashboard/RaceCountdown';
 import BossCard from '@/components/boss/BossCard';
 import BossTimeline from '@/components/boss/BossTimeline';
 import BossDefeatCinematic from '@/components/boss/BossDefeatCinematic';
@@ -42,7 +43,8 @@ import {
 } from '@/lib/store';
 import type { WeeklyEPInfo, AttackBossWeeklyResult } from '@/lib/store';
 import type { WeeklyWinnerResult, SportLeaderboardEntry } from '@/lib/store/leaderboard';
-import { getCurrentWeekNumber, getPlanForWeek } from '@/lib/training-plan';
+import { getCurrentWeekNumber, getPlanForWeek, TRAINING_PLAN } from '@/lib/training-plan';
+import { getWeekRange } from '@/lib/date-utils';
 import type {
   Profile,
   PlannedSession,
@@ -215,6 +217,7 @@ export default function DashboardPage() {
   const [weekSessions, setWeekSessions] = useState<Session[]>([]);
   const [feed, setFeed] = useState<EnhancedFeedItem[]>([]);
   const [weekNumber, setWeekNumber] = useState(1);
+  const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [totalSessions, setTotalSessions] = useState(0);
   const [bossEncounter, setBossEncounter] = useState<BossEncounterWithBoss | null>(null);
   const [bossAttacks, setBossAttacks] = useState<BossAttackWithUser[]>([]);
@@ -262,6 +265,7 @@ export default function DashboardPage() {
         getUserGroupId(user.id),
       ]);
 
+      setAllSessions(sessions);
       setTotalSessions(sessions.length);
       setTodaySessions(sessions.filter((s) => s.date === today));
 
@@ -589,6 +593,9 @@ export default function DashboardPage() {
           currentEncounter={bossEncounter}
           currentWeek={weekNumber}
         />
+
+        {/* Race countdown */}
+        <RaceCountdown profile={profile} sessions={allSessions} plan={TRAINING_PLAN} />
 
         {/* Today's session card */}
         <TodayCard todayPlan={todayPlan} todaySessions={todaySessions} />
