@@ -45,6 +45,39 @@ type RaceDateField =
   | 'race_date_vasaloppet';
 type EditableProfileField = 'display_name' | GoalField | RaceDateField;
 
+function normalizeDateInputValue(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+
+  // Accept already-normalized ISO date.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Accept browser-localized date text (e.g. MM/DD/YYYY) and convert to ISO.
+  const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const month = Number.parseInt(slashMatch[1], 10);
+    const day = Number.parseInt(slashMatch[2], 10);
+    const year = Number.parseInt(slashMatch[3], 10);
+    if (
+      Number.isFinite(month) &&
+      Number.isFinite(day) &&
+      Number.isFinite(year) &&
+      month >= 1 &&
+      month <= 12 &&
+      day >= 1 &&
+      day <= 31
+    ) {
+      const m = String(month).padStart(2, '0');
+      const d = String(day).padStart(2, '0');
+      return `${year}-${m}-${d}`;
+    }
+  }
+
+  return trimmed;
+}
+
 function InlineEdit({
   value,
   onSave,
@@ -76,7 +109,7 @@ function InlineEdit({
   }, [value, editing]);
 
   async function commit() {
-    const trimmed = draft.trim();
+    const trimmed = type === 'date' ? normalizeDateInputValue(draft) : draft.trim();
     if (trimmed === '' || trimmed === String(value)) {
       setEditing(false);
       setDraft(String(value));

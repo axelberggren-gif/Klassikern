@@ -57,3 +57,15 @@ export const TEST_PROFILE = {
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 } as const;
+
+import type { Profile } from '@/types/database';
+
+let testProfileState: Profile = TEST_PROFILE as unknown as Profile;
+
+export function getTestProfile(): Profile {
+  return testProfileState;
+}
+
+export function setTestProfile(next: Profile): void {
+  testProfileState = next;
+}
