@@ -561,6 +561,22 @@ export default function DashboardPage() {
       </div>
 
       <div className="flex flex-col gap-4 px-4">
+        {/* Weekly Recap Banner */}
+        <Link
+          href="/recap"
+          className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-900/30 via-slate-900 to-violet-900/30 p-4 flex items-center gap-3 group"
+        >
+          <div className="animate-recap-shimmer absolute inset-0 pointer-events-none" />
+          <div className="text-2xl animate-recap-float">&#9876;&#65039;</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-50">Veckans Recap</p>
+            <p className="text-xs text-slate-400">Se din Kapitel {weekNumber} sammanfattning</p>
+          </div>
+          <span className="text-xs font-semibold text-emerald-400 group-hover:text-emerald-300 whitespace-nowrap">
+            Visa &rarr;
+          </span>
+        </Link>
+
         {/* Boss Card */}
         <BossCard encounter={bossEncounter} attacks={bossAttacks} weeklyEP={weeklyEP} onAttack={handleBossAttack} />
 
