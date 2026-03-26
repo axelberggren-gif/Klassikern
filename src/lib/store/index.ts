@@ -38,7 +38,7 @@ export { getStravaConnection, disconnectStrava } from './strava';
 
 export {
   getActiveChallenge,
-  getChallengeHistory,
+  getChallengeHistory as getWeeklyChallengeHistory,
   createChallenge,
   resolveChallenge,
   getChallengeProgress,
