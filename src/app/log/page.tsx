@@ -12,6 +12,7 @@ import { logSession, getUserGroupId, getAllBadges } from '@/lib/store';
 import { getPlanForWeek } from '@/lib/training-plan';
 import { getCurrentWeekNumber } from '@/lib/date-utils';
 import type { SportType, EffortRating, Session, Badge, PlannedSession } from '@/types/database';
+import type { PersonalRecord } from '@/lib/pr-checker';
 
 export default function LogSessionPage() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function LogSessionPage() {
   const [note, setNote] = useState('');
   const [todayPlanned, setTodayPlanned] = useState<PlannedSession | null>(null);
   const [reward, setReward] = useState<Session | null>(null);
+  const [rewardPRs, setRewardPRs] = useState<PersonalRecord[]>([]);
   const [pendingBadges, setPendingBadges] = useState<Badge[]>([]);
   const [currentBadge, setCurrentBadge] = useState<Badge | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -66,6 +68,7 @@ export default function LogSessionPage() {
     setSubmitting(false);
     if (result) {
       setReward(result.session);
+      setRewardPRs(result.personalRecords);
 
       if (result.newBadges.length > 0) {
         const allBadgeDefs = await getAllBadges();
@@ -115,6 +118,7 @@ export default function LogSessionPage() {
       {reward && (
         <SessionReward
           session={reward}
+          personalRecords={rewardPRs}
           onDone={handleRewardDone}
         />
       )}

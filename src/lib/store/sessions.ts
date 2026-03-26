@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase';
 import { calculateEP } from '../ep-calculator';
 import { checkAndAwardBadges } from '../badge-checker';
+import { detectPersonalRecords, type PersonalRecord } from '../pr-checker';
 import type { Session, Profile, SportType, EffortRating } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -25,6 +26,7 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
 export interface LogSessionResult {
   session: Session;
   newBadges: string[];
+  personalRecords: PersonalRecord[];
 }
 
 export async function logSession(params: {
@@ -98,5 +100,9 @@ export async function logSession(params: {
 
   const newBadges = await checkAndAwardBadges(params.userId);
 
-  return { session, newBadges };
+  // Check for personal records
+  const previousSessions = await getUserSessions(params.userId);
+  const personalRecords = detectPersonalRecords(session, previousSessions);
+
+  return { session, newBadges, personalRecords };
 }

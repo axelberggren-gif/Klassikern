@@ -16,6 +16,7 @@ export {
 
 export { getUserSessions, logSession } from './sessions';
 export type { LogSessionResult } from './sessions';
+export type { PersonalRecord } from '../pr-checker';
 
 export { getActivityFeed } from './feed';
 

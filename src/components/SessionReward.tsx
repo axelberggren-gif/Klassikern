@@ -3,9 +3,11 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { SPORT_CONFIG } from '@/lib/sport-config';
 import type { Session } from '@/types/database';
+import type { PersonalRecord } from '@/lib/pr-checker';
 
 interface SessionRewardProps {
   session: Session;
+  personalRecords?: PersonalRecord[];
   bossDamage?: {
     damage: number;
     isCritical: boolean;
@@ -18,7 +20,7 @@ interface SessionRewardProps {
   onDone: () => void;
 }
 
-export default function SessionReward({ session, bossDamage, onDone }: SessionRewardProps) {
+export default function SessionReward({ session, personalRecords = [], bossDamage, onDone }: SessionRewardProps) {
   const [show, setShow] = useState(false);
   const [phase, setPhase] = useState<1 | 2>(1);
   const [displayedDamage, setDisplayedDamage] = useState(0);
@@ -193,6 +195,32 @@ export default function SessionReward({ session, bossDamage, onDone }: SessionRe
                 <div className="flex items-center gap-2 rounded-full bg-emerald-500/15 px-4 py-2">
                   <span className="text-emerald-400">&#10003;</span>
                   <span className="text-sm font-medium text-emerald-400">On track!</span>
+                </div>
+              )}
+
+              {/* Personal Record badges */}
+              {personalRecords.length > 0 && (
+                <div className="flex flex-col items-center gap-2 mt-1 w-full">
+                  {personalRecords.map((pr, i) => (
+                    <div
+                      key={pr.category}
+                      className="flex items-center gap-2 rounded-full bg-amber-400/15 border border-amber-400/30 px-4 py-2 animate-slide-up"
+                      style={{ animationDelay: `${0.3 + i * 0.15}s`, animationFillMode: 'both' }}
+                    >
+                      <span className="text-amber-400 text-base">&#127942;</span>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-amber-300">
+                          Nytt rekord! {pr.label}
+                        </span>
+                        <span className="text-xs text-amber-400/80">
+                          {pr.formattedValue}
+                          {pr.formattedPrevious && (
+                            <> <span className="text-slate-500">&#8592;</span> {pr.formattedPrevious}</>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </>
