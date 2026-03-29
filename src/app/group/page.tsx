@@ -17,6 +17,7 @@ import {
   Plus,
   Loader2,
   Swords,
+  Target,
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import NotificationBell from '@/components/NotificationBell';
@@ -27,6 +28,7 @@ import WeeklyHistory from '@/components/group/WeeklyHistory';
 import SportLeaderboard from '@/components/group/SportLeaderboard';
 import HeadToHead from '@/components/group/HeadToHead';
 import CallOutChallenge from '@/components/group/CallOutChallenge';
+import ChallengeTab from '@/components/group/ChallengeTab';
 import { useAuth } from '@/lib/auth';
 import {
   getGroupMembers,
@@ -49,6 +51,9 @@ import {
   getWeeklyWinners,
   getSportLeaderboard,
   getPowerRankings,
+  getActiveChallenge,
+  getWeeklyChallengeHistory,
+  getChallengeProgress,
 } from '@/lib/store';
 import type {
   Profile,
@@ -58,6 +63,8 @@ import type {
   ChallengeMetric,
   CallOutChallengeWithUsers,
   PowerRanking,
+  WeeklyChallenge,
+  ChallengeParticipantProgress,
 } from '@/types/database';
 import type { WeeklyWinnerResult, SportLeaderboardEntry } from '@/lib/store/leaderboard';
 
@@ -66,7 +73,7 @@ import type { WeeklyWinnerResult, SportLeaderboardEntry } from '@/lib/store/lead
 // ---------------------------------------------------------------------------
 
 type LeaderboardType = 'damage' | 'ep' | 'streak';
-type TabType = 'leaderboard' | 'feed' | 'settings';
+type TabType = 'leaderboard' | 'feed' | 'challenges' | 'settings';
 type LeaderboardSubTab = 'overview' | 'power' | 'weekly' | 'sport' | 'h2h';
 
 interface LeaderboardConfig {
@@ -525,6 +532,9 @@ export default function GroupPage() {
   const [weeklyWinners, setWeeklyWinners] = useState<WeeklyWinnerResult[]>([]);
   const [sportData, setSportData] = useState<Map<SportType, SportLeaderboardEntry[]>>(new Map());
   const [challenges, setChallenges] = useState<CallOutChallengeWithUsers[]>([]);
+  const [weeklyChallenge, setWeeklyChallenge] = useState<WeeklyChallenge | null>(null);
+  const [weeklyChallengeProgress, setWeeklyChallengeProgress] = useState<ChallengeParticipantProgress[]>([]);
+  const [weeklyChallengeHistory, setWeeklyChallengeHistory] = useState<WeeklyChallenge[]>([]);
 
   // -------------------------------------------------------------------------
   // Data loading
@@ -597,7 +607,7 @@ export default function GroupPage() {
 
       // Load weekly winners, sport data, and challenges in background
       const loadSecondary = async () => {
-        const [winners, cycling, running, swimming, hiit, activeCh, historyCh] =
+        const [winners, cycling, running, swimming, hiit, activeCh, historyCh, wkChallenge, wkHistory] =
           await Promise.all([
             getWeeklyWinners(userGroupId, 12),
             getSportLeaderboard(userGroupId, 'cycling'),
@@ -606,6 +616,8 @@ export default function GroupPage() {
             getSportLeaderboard(userGroupId, 'hiit'),
             getActiveChallenges(userGroupId),
             getChallengeHistory(userGroupId),
+            getActiveChallenge(userGroupId),
+            getWeeklyChallengeHistory(userGroupId),
           ]);
         setWeeklyWinners(winners);
         const sMap = new Map<SportType, SportLeaderboardEntry[]>();
@@ -615,6 +627,14 @@ export default function GroupPage() {
         sMap.set('hiit', hiit);
         setSportData(sMap);
         setChallenges([...activeCh, ...historyCh]);
+        setWeeklyChallenge(wkChallenge);
+        setWeeklyChallengeHistory(wkHistory);
+
+        // Load challenge progress if there's an active weekly challenge
+        if (wkChallenge) {
+          const progress = await getChallengeProgress(wkChallenge, groupMembers);
+          setWeeklyChallengeProgress(progress);
+        }
       };
       loadSecondary();
     } else {
@@ -790,6 +810,15 @@ export default function GroupPage() {
           Aktivitet
         </button>
         <button
+          onClick={() => setActiveTab('challenges')}
+          className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${
+            activeTab === 'challenges' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400'
+          }`}
+        >
+          <Target size={14} className="inline mr-1 -mt-0.5" />
+          Utmaningar
+        </button>
+        <button
           onClick={() => setActiveTab('settings')}
           className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${
             activeTab === 'settings' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400'
@@ -904,6 +933,23 @@ export default function GroupPage() {
               onDeleteComment={handleDeleteComment}
             />
           </>
+        )}
+
+        {/* ====================== CHALLENGES TAB ====================== */}
+        {activeTab === 'challenges' && groupId && (
+          <ChallengeTab
+            groupId={groupId}
+            challenge={weeklyChallenge}
+            progress={weeklyChallengeProgress}
+            history={weeklyChallengeHistory}
+            members={members}
+            currentUserId={user!.id}
+            isAdmin={(() => {
+              const member = groupDetails?.members.find((m) => m.user_id === user!.id);
+              return member?.role === 'owner' || member?.role === 'admin';
+            })()}
+            onChallengeCreated={loadData}
+          />
         )}
 
         {/* ====================== SETTINGS TAB ====================== */}
