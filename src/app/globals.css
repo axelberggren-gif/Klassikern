@@ -276,6 +276,51 @@ body {
 .animate-boss-defeated-banner { animation: boss-defeated-banner 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 .animate-boss-secret-reveal { animation: boss-secret-reveal 0.5s ease-out forwards; }
 .animate-boss-loot-particle { animation: boss-loot-particle 3s ease-out infinite; }
+@keyframes boss-shake {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  15% { transform: translateX(-6px) rotate(-3deg); }
+  30% { transform: translateX(6px) rotate(3deg); }
+  45% { transform: translateX(-4px) rotate(-2deg); }
+  60% { transform: translateX(4px) rotate(2deg); }
+  75% { transform: translateX(-2px) rotate(-1deg); }
+  90% { transform: translateX(2px) rotate(1deg); }
+}
+
+@keyframes damage-pop {
+  0% { transform: scale(0.3); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes killing-blow-scale {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); opacity: 1; }
+  75% { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes screen-shake {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  10% { transform: translateX(-6px) translateY(3px); }
+  20% { transform: translateX(5px) translateY(-4px); }
+  30% { transform: translateX(-8px) translateY(2px); }
+  40% { transform: translateX(6px) translateY(-3px); }
+  50% { transform: translateX(-4px) translateY(4px); }
+  60% { transform: translateX(5px) translateY(-2px); }
+  70% { transform: translateX(-3px) translateY(2px); }
+  80% { transform: translateX(2px) translateY(-1px); }
+}
+
+@keyframes critical-flash {
+  0% { opacity: 0.7; }
+  100% { opacity: 0; }
+}
+
+@keyframes particle-burst {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(calc(cos(var(--angle)) * var(--distance)), calc(sin(var(--angle)) * var(--distance))) scale(0); opacity: 0; }
+}
+
 .animate-boss-shake { animation: boss-shake 0.6s ease-in-out infinite; }
 .animate-damage-pop { animation: damage-pop 0.4s ease-out forwards; }
 .animate-killing-blow { animation: killing-blow-scale 0.6s ease-out forwards; }
@@ -300,6 +345,7 @@ body {
 
 @keyframes recap-bar-grow {
   0% { width: 0%; }
+  100% { width: var(--target-width, 100%); }
 }
 
 @keyframes recap-ring {

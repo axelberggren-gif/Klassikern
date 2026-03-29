@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { logSession, getUserGroupId, getAllBadges, attackBoss } from '@/lib/store';
 import { getPlanForWeek } from '@/lib/training-plan';
 import { getCurrentWeekNumber } from '@/lib/date-utils';
+import type { PersonalRecord } from '@/lib/pr-checker';
 import type { SportType, EffortRating, Session, Badge, PlannedSession } from '@/types/database';
 
 export default function LogSessionPage() {
@@ -23,6 +24,7 @@ export default function LogSessionPage() {
   const [note, setNote] = useState('');
   const [todayPlanned, setTodayPlanned] = useState<PlannedSession | null>(null);
   const [reward, setReward] = useState<Session | null>(null);
+  const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>([]);
   const [pendingBadges, setPendingBadges] = useState<Badge[]>([]);
   const [currentBadge, setCurrentBadge] = useState<Badge | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -88,6 +90,7 @@ export default function LogSessionPage() {
       }
 
       setReward(result.session);
+      setPersonalRecords(result.personalRecords);
 
       if (result.newBadges.length > 0) {
         const allBadgeDefs = await getAllBadges();
@@ -138,6 +141,7 @@ export default function LogSessionPage() {
       {reward && (
         <SessionReward
           session={reward}
+          personalRecords={personalRecords}
           bossDamage={bossDamage}
           onDone={handleRewardDone}
         />
