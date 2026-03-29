@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { speakBossDefeat, cancelBossSpeech } from '@/lib/boss-voice';
+import { speakBossDefeat, speakBossText, cancelBossSpeech } from '@/lib/boss-voice';
 
 interface BossDefeatCinematicProps {
   bossEmoji: string;
@@ -52,6 +52,17 @@ export default function BossDefeatCinematic({
       speakBossDefeat(bossLevel);
     }
   }, [phase, bossLevel]);
+
+  // Narrate the defeat text in the boss's voice during the speech phase
+  useEffect(() => {
+    if (phase === 'speech' && bossLevel && defeatText) {
+      // Short delay to let defeat voice finish
+      const timer = setTimeout(() => {
+        speakBossText(defeatText, bossLevel);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, bossLevel, defeatText]);
 
   // Typewriter effect for defeat text
   useEffect(() => {

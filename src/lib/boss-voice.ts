@@ -6,7 +6,7 @@
  * in localStorage so it persists across sessions.
  */
 
-import { getRandomTaunt, getDefeatLine, getVoiceProfile } from './boss-taunts';
+import { getRandomTaunt, getDefeatLine, getSpawnLine, getVoiceProfile } from './boss-taunts';
 import type { BossVoiceProfile } from './boss-taunts';
 
 const MUTE_KEY = 'boss-voice-muted';
@@ -71,6 +71,18 @@ function speak(
 // ── Public API ───────────────────────────────────────────────────────
 
 /**
+ * Speak the boss spawn line when a new boss appears.
+ * Returns the utterance or null if muted/unavailable.
+ */
+export function speakBossSpawn(bossLevel: number): SpeechSynthesisUtterance | null {
+  const text = getSpawnLine(bossLevel);
+  if (!text) return null;
+  // Slightly slower and more dramatic for spawn announcements
+  const profile = getVoiceProfile(bossLevel);
+  return speak(text, { ...profile, rate: profile.rate * 0.85 });
+}
+
+/**
  * Speak a random attack taunt for a boss.
  * Returns the utterance (for chaining/cancellation) or null if muted/unavailable.
  */
@@ -88,6 +100,17 @@ export function speakBossDefeat(bossLevel: number): SpeechSynthesisUtterance | n
   const text = getDefeatLine(bossLevel);
   if (!text) return null;
   return speak(text, getVoiceProfile(bossLevel));
+}
+
+/**
+ * Speak arbitrary text in the boss's voice (for lore, descriptions, taunts).
+ * Returns the utterance or null if muted/unavailable.
+ */
+export function speakBossText(text: string, bossLevel: number): SpeechSynthesisUtterance | null {
+  if (!text) return null;
+  const profile = getVoiceProfile(bossLevel);
+  // Use a slightly slower rate for narration/lore to improve clarity
+  return speak(text, { ...profile, rate: profile.rate * 0.9 });
 }
 
 /**
