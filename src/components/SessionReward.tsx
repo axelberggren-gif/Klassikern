@@ -208,6 +208,29 @@ export default function SessionReward({ session, personalRecords = [], bossDamag
                   <span className="text-sm font-medium text-emerald-400">On track!</span>
                 </div>
               )}
+
+              {/* Personal Record badges */}
+              {personalRecords.length > 0 && (
+                <div className="flex flex-col gap-2 w-full mt-2">
+                  {personalRecords.map((pr) => (
+                    <div
+                      key={`${pr.category}-${pr.sportType}`}
+                      className="animate-slide-up flex items-center gap-3 rounded-xl bg-amber-400/10 border border-amber-400/30 px-4 py-2"
+                    >
+                      <span className="text-xl">&#127942;</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-amber-300">{pr.label}</p>
+                        <p className="text-xs text-amber-200/70">
+                          {pr.formattedValue}
+                          {pr.formattedPrevious && (
+                            <span className="text-slate-400"> (tidigare: {pr.formattedPrevious})</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
 

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Swords, Loader2, Zap, BookOpen, ChevronDown } from 'lucide-react';
 import BossHPBar from './BossHPBar';
 import WeaknessResistance from './WeaknessResistance';
 import BossAttackLog from './BossAttackLog';
 import { isLastStandWindow } from '@/lib/boss-engine';
 import { SPORT_CONFIG } from '@/lib/sport-config';
+import { speakBossTaunt, preloadVoices } from '@/lib/boss-voice';
 import type { BossEncounterWithBoss, BossAttackWithUser, SportType, CritCondition } from '@/types/database';
 import type { WeeklyEPInfo } from '@/lib/store';
 
@@ -62,6 +63,9 @@ export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: Bos
   const [emojiHit, setEmojiHit] = useState(false);
   const [screenFlash, setScreenFlash] = useState(false);
 
+  // Preload speech synthesis voices on mount
+  useEffect(() => { preloadVoices(); }, []);
+
   const crypticHints = useMemo(
     () => getCrypticHints(encounter?.boss.crit_conditions ?? [], encounter?.boss.name ?? ''),
     [encounter?.boss.crit_conditions, encounter?.boss.name]
@@ -81,6 +85,9 @@ export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: Bos
     try {
       const result = await onAttack();
       if (result) {
+        // Boss voice taunt on hit
+        speakBossTaunt(encounter.boss.level);
+
         // Trigger all hit animations
         setScreenFlash(true);
         setShaking(true);
