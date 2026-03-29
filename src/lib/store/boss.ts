@@ -434,6 +434,7 @@ export interface AttackBossWeeklyResult {
   isCritical: boolean;
   bossEmoji: string;
   bossName: string;
+  bossLevel: number;
   isKillingBlow: boolean;
   remainingHP: number;
   maxHP: number;
@@ -593,6 +594,7 @@ export async function attackBossWeekly(params: {
     isCritical: damageResult.isCritical,
     bossEmoji: encounter.boss.emoji,
     bossName: encounter.boss.name,
+    bossLevel: encounter.boss.level,
     isKillingBlow,
     remainingHP: newHP,
     maxHP: encounter.max_hp,

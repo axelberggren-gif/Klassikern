@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { speakBossDefeat, cancelBossSpeech } from '@/lib/boss-voice';
 
 interface BossDefeatCinematicProps {
   bossEmoji: string;
   bossName: string;
+  bossLevel?: number;
   defeatText: string;
   critSecret: string | null;
   bonusDamage: number;
@@ -17,6 +19,7 @@ type Phase = 'darkening' | 'boss_appear' | 'damage_flash' | 'defeat' | 'speech' 
 export default function BossDefeatCinematic({
   bossEmoji,
   bossName,
+  bossLevel,
   defeatText,
   critSecret,
   bonusDamage,
@@ -37,8 +40,18 @@ export default function BossDefeatCinematic({
     timers.push(setTimeout(() => setPhase('speech'), 3400));
     timers.push(setTimeout(() => setShowSkip(true), 4000));
 
-    return () => timers.forEach(clearTimeout);
+    return () => {
+      timers.forEach(clearTimeout);
+      cancelBossSpeech();
+    };
   }, []);
+
+  // Speak the boss defeat line when the defeat phase starts
+  useEffect(() => {
+    if (phase === 'defeat' && bossLevel) {
+      speakBossDefeat(bossLevel);
+    }
+  }, [phase, bossLevel]);
 
   // Typewriter effect for defeat text
   useEffect(() => {

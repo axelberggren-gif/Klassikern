@@ -545,6 +545,7 @@ export default function DashboardPage() {
         <BossDefeatCinematic
           bossEmoji={defeatResult.bossEmoji}
           bossName={defeatResult.bossName}
+          bossLevel={defeatResult.bossLevel}
           defeatText={defeatResult.defeatText}
           critSecret={defeatResult.critSecret}
           bonusDamage={defeatResult.damage}
