@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Swords, Loader2, Zap, BookOpen, ChevronDown } from 'lucide-react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { Swords, Loader2, Zap, BookOpen, ChevronDown, Volume2 } from 'lucide-react';
 import BossHPBar from './BossHPBar';
 import WeaknessResistance from './WeaknessResistance';
 import BossAttackLog from './BossAttackLog';
 import { isLastStandWindow } from '@/lib/boss-engine';
 import { SPORT_CONFIG } from '@/lib/sport-config';
-import { speakBossTaunt, preloadVoices } from '@/lib/boss-voice';
+import { speakBossTaunt, speakBossSpawn, speakBossText, cancelBossSpeech, preloadVoices, isBossVoiceMuted } from '@/lib/boss-voice';
 import type { BossEncounterWithBoss, BossAttackWithUser, SportType, CritCondition } from '@/types/database';
 import type { WeeklyEPInfo } from '@/lib/store';
 
@@ -53,6 +53,7 @@ interface BossCardProps {
 export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: BossCardProps) {
   const [attacking, setAttacking] = useState(false);
   const [loreExpanded, setLoreExpanded] = useState(false);
+  const [narrating, setNarrating] = useState(false);
   // Hit animation state
   const [hitState, setHitState] = useState<{
     damage: number;
@@ -63,8 +64,28 @@ export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: Bos
   const [emojiHit, setEmojiHit] = useState(false);
   const [screenFlash, setScreenFlash] = useState(false);
 
+  // Track which boss encounter we've already spoken spawn for
+  const spawnSpokenRef = useRef<string | null>(null);
+
   // Preload speech synthesis voices on mount
   useEffect(() => { preloadVoices(); }, []);
+
+  // Speak boss spawn line when a new encounter appears
+  useEffect(() => {
+    if (!encounter) return;
+    if (spawnSpokenRef.current === encounter.id) return;
+    spawnSpokenRef.current = encounter.id;
+    // Slight delay so voices are loaded and the card is visible
+    const timer = setTimeout(() => {
+      speakBossSpawn(encounter.boss.level);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [encounter?.id, encounter?.boss.level]);
+
+  // Cancel speech on unmount
+  useEffect(() => {
+    return () => cancelBossSpeech();
+  }, []);
 
   const crypticHints = useMemo(
     () => getCrypticHints(encounter?.boss.crit_conditions ?? [], encounter?.boss.name ?? ''),
@@ -74,6 +95,20 @@ export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: Bos
     () => getBossTaunt(encounter?.boss.defeat_quotes ?? [], encounter?.boss.name ?? ''),
     [encounter?.boss.defeat_quotes, encounter?.boss.name]
   );
+
+  /** Narrate the boss lore + taunt in the boss's voice */
+  const handleNarrateBoss = useCallback(() => {
+    if (!encounter || narrating || isBossVoiceMuted()) return;
+    const lore = encounter.boss.lore;
+    const taunt = bossTaunt;
+    const fullText = `${lore}. ${taunt}`;
+    const utterance = speakBossText(fullText, encounter.boss.level);
+    if (utterance) {
+      setNarrating(true);
+      utterance.onend = () => setNarrating(false);
+      utterance.onerror = () => setNarrating(false);
+    }
+  }, [encounter, narrating, bossTaunt]);
 
   const handleAttack = useCallback(async () => {
     if (!weeklyEP || weeklyEP.totalEP <= 0 || attacking || !encounter) return;
@@ -172,23 +207,48 @@ export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: Bos
         </div>
 
         {/* Expandable mythology panel — lore + hints + taunt */}
-        <button
-          onClick={() => setLoreExpanded(!loreExpanded)}
-          className="flex w-full items-center gap-2 rounded-lg bg-slate-800/60 px-3 py-2 mb-3 transition-colors active:bg-slate-800"
-        >
-          <BookOpen size={14} className="text-amber-400 flex-shrink-0" />
-          <span className="text-[11px] font-semibold text-amber-400">Mytologi &amp; hemligheter</span>
-          <ChevronDown
-            size={14}
-            className={`ml-auto text-slate-500 transition-transform ${loreExpanded ? 'rotate-180' : ''}`}
-          />
-        </button>
+        <div className="flex gap-2 mb-3">
+          <button
+            onClick={() => setLoreExpanded(!loreExpanded)}
+            className="flex flex-1 items-center gap-2 rounded-lg bg-slate-800/60 px-3 py-2 transition-colors active:bg-slate-800"
+          >
+            <BookOpen size={14} className="text-amber-400 flex-shrink-0" />
+            <span className="text-[11px] font-semibold text-amber-400">Mytologi &amp; hemligheter</span>
+            <ChevronDown
+              size={14}
+              className={`ml-auto text-slate-500 transition-transform ${loreExpanded ? 'rotate-180' : ''}`}
+            />
+          </button>
+          <button
+            onClick={handleNarrateBoss}
+            disabled={isBossVoiceMuted()}
+            className={`flex items-center justify-center rounded-lg bg-slate-800/60 px-3 py-2 transition-colors active:bg-slate-800 disabled:opacity-30 ${
+              narrating ? 'ring-1 ring-amber-500/50' : ''
+            }`}
+            title="Lyssna på bossen"
+          >
+            <Volume2
+              size={14}
+              className={`text-amber-400 ${narrating ? 'animate-pulse' : ''}`}
+            />
+          </button>
+        </div>
         {loreExpanded && (
           <div className="mb-4 rounded-xl bg-gradient-to-b from-slate-800/80 to-slate-900/80 border border-amber-500/10 px-4 py-3 animate-slide-up">
             {/* Full lore */}
-            <p className="text-xs text-slate-300 italic leading-relaxed">
-              {boss.lore}
-            </p>
+            <div className="flex items-start gap-2">
+              <p className="flex-1 text-xs text-slate-300 italic leading-relaxed">
+                {boss.lore}
+              </p>
+              <button
+                onClick={() => speakBossText(boss.lore, boss.level)}
+                disabled={isBossVoiceMuted()}
+                className="mt-0.5 p-1 rounded-md transition-colors active:bg-slate-700/50 disabled:opacity-30 flex-shrink-0"
+                title="Lyssna på historien"
+              >
+                <Volume2 size={12} className="text-slate-400" />
+              </button>
+            </div>
 
             {/* Cryptic crit hints */}
             <div className="mt-3 border-t border-slate-700/50 pt-3">
@@ -206,9 +266,19 @@ export default function BossCard({ encounter, attacks, weeklyEP, onAttack }: Bos
 
             {/* Boss taunt */}
             <div className="mt-3 border-t border-slate-700/50 pt-3">
-              <p className="text-[10px] font-bold text-rose-400/80 uppercase tracking-wider mb-1">
-                {boss.emoji} {boss.name} viskar:
-              </p>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] font-bold text-rose-400/80 uppercase tracking-wider">
+                  {boss.emoji} {boss.name} viskar:
+                </p>
+                <button
+                  onClick={() => speakBossText(bossTaunt, boss.level)}
+                  disabled={isBossVoiceMuted()}
+                  className="p-1 rounded-md transition-colors active:bg-slate-700/50 disabled:opacity-30"
+                  title="Lyssna på viskningen"
+                >
+                  <Volume2 size={12} className="text-rose-400/60" />
+                </button>
+              </div>
               <p className="text-xs text-rose-300/70 italic">
                 &ldquo;{bossTaunt}&rdquo;
               </p>
