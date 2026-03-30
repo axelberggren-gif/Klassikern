@@ -1,5 +1,6 @@
 import type { SportType, BossDefinition, BossEncounter, CritCondition } from '@/types/database';
 
+const BASE_DAMAGE_MULTIPLIER = 3;
 const WEAKNESS_MULTIPLIER = 1.5;
 const RESISTANCE_MULTIPLIER = 0.75;
 const CRIT_MULTIPLIER = 2.0;
@@ -86,7 +87,7 @@ export function calculateBossDamage(params: {
   todayAttackerCount: number;
   critContext: CritContext;
 }): DamageResult {
-  let damage = params.epEarned;
+  let damage = params.epEarned * BASE_DAMAGE_MULTIPLIER;
   let isWeakness = false;
   let isResistance = false;
 

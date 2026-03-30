@@ -58,7 +58,7 @@ describe('calculateBossDamage', () => {
       critContext: makeCritContext(),
     });
 
-    expect(result.damage).toBe(15);
+    expect(result.damage).toBe(45); // 10 * 3 (base) * 1.5 (weakness)
     expect(result.isWeakness).toBe(true);
     expect(result.isResistance).toBe(false);
 
@@ -77,7 +77,7 @@ describe('calculateBossDamage', () => {
       critContext: makeCritContext(),
     });
 
-    expect(result.damage).toBe(15);
+    expect(result.damage).toBe(45); // 20 * 3 (base) * 0.75 (resistance)
     expect(result.isResistance).toBe(true);
 
     vi.restoreAllMocks();
@@ -95,7 +95,7 @@ describe('calculateBossDamage', () => {
       critContext: makeCritContext(),
     });
 
-    expect(result.damage).toBe(12); // 10 * 1.2
+    expect(result.damage).toBe(36); // 10 * 3 (base) * 1.2 (combo)
 
     vi.restoreAllMocks();
   });
@@ -112,7 +112,7 @@ describe('calculateBossDamage', () => {
       critContext: makeCritContext(),
     });
 
-    expect(result.damage).toBe(20); // 10 * 2.0
+    expect(result.damage).toBe(60); // 10 * 3 (base) * 2.0 (last stand)
     expect(result.isLastStand).toBe(true);
 
     vi.restoreAllMocks();
