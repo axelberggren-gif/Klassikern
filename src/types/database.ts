@@ -92,6 +92,7 @@ export interface Database {
           race_date_vansbro: string | null;
           race_date_lidingo: string | null;
           race_date_vasaloppet: string | null;
+          icon_color: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -112,6 +113,7 @@ export interface Database {
           race_date_vansbro?: string | null;
           race_date_lidingo?: string | null;
           race_date_vasaloppet?: string | null;
+          icon_color?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -132,6 +134,7 @@ export interface Database {
           race_date_vansbro?: string | null;
           race_date_lidingo?: string | null;
           race_date_vasaloppet?: string | null;
+          icon_color?: string | null;
           updated_at?: string;
         };
         Relationships: [];
