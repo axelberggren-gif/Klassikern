@@ -21,14 +21,150 @@ import {
   VolumeX,
   Mountain,
   Calendar,
+  Upload,
+  Loader2,
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import { getBadgeIcon } from '@/components/BadgeUnlockModal';
 import StravaConnect from '@/components/StravaConnect';
 import { useAuth } from '@/lib/auth';
 import { isBossVoiceMuted, setBossVoiceMuted } from '@/lib/boss-voice';
-import { updateCurrentUser, getUserBadges, getAllBadges, getUserBossTrophies, getAllBossDefinitions } from '@/lib/store';
+import {
+  updateCurrentUser,
+  getUserBadges,
+  getAllBadges,
+  getUserBossTrophies,
+  getAllBossDefinitions,
+  uploadRaceIcon,
+} from '@/lib/store';
 import type { Badge, UserBadgeWithBadge, BossDefinition, BossTrophy } from '@/types/database';
+
+const RING_COLORS: { value: string; label: string }[] = [
+  { value: '#f97316', label: 'Orange' },
+  { value: '#ef4444', label: 'Röd' },
+  { value: '#eab308', label: 'Gul' },
+  { value: '#10b981', label: 'Grön' },
+  { value: '#06b6d4', label: 'Cyan' },
+  { value: '#3b82f6', label: 'Blå' },
+  { value: '#8b5cf6', label: 'Lila' },
+  { value: '#ec4899', label: 'Rosa' },
+  { value: '#14b8a6', label: 'Teal' },
+  { value: '#f59e0b', label: 'Amber' },
+];
+
+function RaceIconCard({
+  userId,
+  avatarUrl,
+  iconColor,
+  onChange,
+}: {
+  userId: string;
+  avatarUrl: string | null;
+  iconColor: string;
+  onChange: (next: { avatar_url?: string | null; icon_color?: string }) => Promise<void>;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    if (file.type !== 'image/png') {
+      setError('Endast PNG-filer stöds.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      setError('Bilden är för stor (max 1 MB).');
+      e.target.value = '';
+      return;
+    }
+    setUploading(true);
+    const url = await uploadRaceIcon(userId, file);
+    setUploading(false);
+    e.target.value = '';
+    if (!url) {
+      setError('Uppladdningen misslyckades.');
+      return;
+    }
+    await onChange({ avatar_url: url });
+  }
+
+  return (
+    <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
+      <div className="flex items-center gap-2 mb-1">
+        <Bike size={14} className="text-amber-400" />
+        <h3 className="text-sm font-semibold text-slate-200">Tävlingsikon</h3>
+      </div>
+      <p className="text-xs text-slate-400 mb-4">
+        Visas på cykelkartan på startsidan. Ladda upp en PNG och välj färg på ringen.
+      </p>
+
+      <div className="flex items-center gap-4 mb-4">
+        <div
+          className="h-20 w-20 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
+          style={{ boxShadow: `0 0 0 4px ${iconColor}` }}
+        >
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <span className="text-2xl font-bold text-slate-200 bg-slate-700 h-full w-full flex items-center justify-center">
+              ?
+            </span>
+          )}
+        </div>
+        <div className="flex flex-col gap-2 flex-1 min-w-0">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png"
+            onChange={handleFile}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {uploading ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Upload size={14} />
+            )}
+            {uploading ? 'Laddar upp...' : avatarUrl ? 'Byt ikon' : 'Ladda upp PNG'}
+          </button>
+          {error && <p className="text-xs text-rose-400">{error}</p>}
+          <p className="text-[11px] text-slate-500">PNG, max 1 MB. Kvadratisk bild fungerar bäst.</p>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-medium text-slate-300 mb-2">Ringfärg</p>
+        <div className="flex flex-wrap gap-2">
+          {RING_COLORS.map((c) => {
+            const selected = c.value.toLowerCase() === iconColor.toLowerCase();
+            return (
+              <button
+                key={c.value}
+                type="button"
+                aria-label={c.label}
+                onClick={() => onChange({ icon_color: c.value })}
+                className={`h-8 w-8 rounded-full transition-transform active:scale-90 ${
+                  selected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''
+                }`}
+                style={{ backgroundColor: c.value }}
+              />
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function InlineEdit({
   value,
@@ -302,6 +438,11 @@ export default function ProfilePage() {
   async function saveDateField(field: string, value: string | null) {
     if (!user) return;
     await updateCurrentUser(user.id, { [field]: value });
+  }
+
+  async function saveRaceIcon(updates: { avatar_url?: string | null; icon_color?: string }) {
+    if (!user) return;
+    await updateCurrentUser(user.id, updates);
   }
 
   return (
@@ -612,6 +753,16 @@ export default function ProfilePage() {
             label="Visningsnamn"
           />
         </div>
+
+        {/* Race icon card */}
+        {user && (
+          <RaceIconCard
+            userId={user.id}
+            avatarUrl={profile.avatar_url}
+            iconColor={profile.icon_color || '#f97316'}
+            onChange={saveRaceIcon}
+          />
+        )}
 
         {/* Strava connection */}
         {user && <StravaConnect userId={user.id} />}

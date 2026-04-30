@@ -14,7 +14,13 @@ export {
   createGroup,
 } from './groups';
 
-export { getUserSessions, logSession, uploadSessionPhoto } from './sessions';
+export {
+  getUserSessions,
+  logSession,
+  uploadSessionPhoto,
+  uploadRaceIcon,
+  getGroupCyclingDistance,
+} from './sessions';
 export type { LogSessionResult } from './sessions';
 export type { PersonalRecord } from '../pr-checker';
 

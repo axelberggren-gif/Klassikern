@@ -29,6 +29,10 @@ import SportLeaderboard from '@/components/group/SportLeaderboard';
 import HeadToHead from '@/components/group/HeadToHead';
 import CallOutChallenge from '@/components/group/CallOutChallenge';
 import ChallengeTab from '@/components/group/ChallengeTab';
+import BossCard from '@/components/boss/BossCard';
+import BossTimeline from '@/components/boss/BossTimeline';
+import BossDefeatCinematic from '@/components/boss/BossDefeatCinematic';
+import DamageLeaderboard from '@/components/leaderboard/DamageLeaderboard';
 import { useAuth } from '@/lib/auth';
 import {
   getGroupMembers,
@@ -41,8 +45,10 @@ import {
   createGroup,
   getActiveBossEncounter,
   getEncounterAttacks,
+  getGroupBossHistory,
+  getUnusedWeeklyEP,
+  attackBossWeekly,
   toggleReaction,
-  getFeedComments,
   addFeedComment,
   deleteFeedComment,
   getActiveChallenges,
@@ -55,9 +61,10 @@ import {
   getWeeklyChallengeHistory,
   getChallengeProgress,
 } from '@/lib/store';
+import type { WeeklyEPInfo, AttackBossWeeklyResult } from '@/lib/store';
+import { getCurrentWeekNumber } from '@/lib/training-plan';
 import type {
   Profile,
-  ActivityFeedItemWithUser,
   GroupDetails,
   SportType,
   ChallengeMetric,
@@ -65,6 +72,8 @@ import type {
   PowerRanking,
   WeeklyChallenge,
   ChallengeParticipantProgress,
+  BossEncounterWithBoss,
+  BossAttackWithUser,
 } from '@/types/database';
 import type { WeeklyWinnerResult, SportLeaderboardEntry } from '@/lib/store/leaderboard';
 
@@ -73,7 +82,7 @@ import type { WeeklyWinnerResult, SportLeaderboardEntry } from '@/lib/store/lead
 // ---------------------------------------------------------------------------
 
 type LeaderboardType = 'damage' | 'ep' | 'streak';
-type TabType = 'leaderboard' | 'feed' | 'challenges' | 'settings';
+type TabType = 'boss' | 'leaderboard' | 'feed' | 'challenges' | 'settings';
 type LeaderboardSubTab = 'overview' | 'power' | 'weekly' | 'sport' | 'h2h';
 
 interface LeaderboardConfig {
@@ -520,7 +529,7 @@ export default function GroupPage() {
   const [feed, setFeed] = useState<EnhancedFeedItem[]>([]);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [groupDetails, setGroupDetails] = useState<GroupDetails | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('leaderboard');
+  const [activeTab, setActiveTab] = useState<TabType>('boss');
   const [leaderboardSubTab, setLeaderboardSubTab] = useState<LeaderboardSubTab>('overview');
   const [dataLoading, setDataLoading] = useState(true);
 
@@ -536,6 +545,14 @@ export default function GroupPage() {
   const [weeklyChallengeProgress, setWeeklyChallengeProgress] = useState<ChallengeParticipantProgress[]>([]);
   const [weeklyChallengeHistory, setWeeklyChallengeHistory] = useState<WeeklyChallenge[]>([]);
 
+  // Boss data
+  const [bossEncounter, setBossEncounter] = useState<BossEncounterWithBoss | null>(null);
+  const [bossAttacks, setBossAttacks] = useState<BossAttackWithUser[]>([]);
+  const [bossHistory, setBossHistory] = useState<BossEncounterWithBoss[]>([]);
+  const [weeklyEP, setWeeklyEP] = useState<WeeklyEPInfo | null>(null);
+  const [defeatResult, setDefeatResult] = useState<AttackBossWeeklyResult | null>(null);
+  const weekNumber = getCurrentWeekNumber();
+
   // -------------------------------------------------------------------------
   // Data loading
   // -------------------------------------------------------------------------
@@ -548,24 +565,35 @@ export default function GroupPage() {
     setGroupId(userGroupId);
 
     if (userGroupId) {
-      const [groupMembers, feedData, details, encounter] = await Promise.all([
+      const [groupMembers, feedData, details, encounter, history] = await Promise.all([
         getGroupMembers(user.id),
         getActivityFeed(userGroupId),
         getGroupDetails(userGroupId),
         getActiveBossEncounter(userGroupId),
+        getGroupBossHistory(userGroupId),
       ]);
 
       setMembers(groupMembers);
       setFeed(feedData as EnhancedFeedItem[]);
       setGroupDetails(details);
+      setBossEncounter(encounter);
+      setBossHistory(history);
 
       // Build damage map from current boss attacks
       const dMap = new Map<string, number>();
       if (encounter) {
-        const attacks = await getEncounterAttacks(encounter.id);
+        const [attacks, epInfo] = await Promise.all([
+          getEncounterAttacks(encounter.id),
+          getUnusedWeeklyEP(user.id, encounter.id),
+        ]);
+        setBossAttacks(attacks);
+        setWeeklyEP(epInfo);
         for (const atk of attacks) {
           dMap.set(atk.user_id, (dMap.get(atk.user_id) || 0) + atk.damage);
         }
+      } else {
+        setBossAttacks([]);
+        setWeeklyEP(null);
       }
       setDamageMap(dMap);
 
@@ -756,6 +784,44 @@ export default function GroupPage() {
   );
 
   // -------------------------------------------------------------------------
+  // Boss
+  // -------------------------------------------------------------------------
+
+  const handleBossAttack = useCallback(async () => {
+    if (!user || !groupId || !profile) return null;
+    const result = await attackBossWeekly({
+      userId: user.id,
+      groupId,
+      userStreak: profile.current_streak,
+    });
+    if (result) {
+      if (result.isKillingBlow && result.defeatText) {
+        setDefeatResult(result);
+      }
+      const encounter = await getActiveBossEncounter(groupId);
+      setBossEncounter(encounter);
+      if (encounter) {
+        const [attacks, epInfo] = await Promise.all([
+          getEncounterAttacks(encounter.id),
+          getUnusedWeeklyEP(user.id, encounter.id),
+        ]);
+        setBossAttacks(attacks);
+        setWeeklyEP(epInfo);
+        const dMap = new Map<string, number>();
+        for (const atk of attacks) {
+          dMap.set(atk.user_id, (dMap.get(atk.user_id) || 0) + atk.damage);
+        }
+        setDamageMap(dMap);
+      } else {
+        const history = await getGroupBossHistory(groupId);
+        setBossHistory(history);
+        setWeeklyEP(null);
+      }
+    }
+    return result;
+  }, [user, groupId, profile]);
+
+  // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
 
@@ -774,6 +840,19 @@ export default function GroupPage() {
   }
 
   return (
+    <>
+      {defeatResult && defeatResult.defeatText && (
+        <BossDefeatCinematic
+          bossEmoji={defeatResult.bossEmoji}
+          bossName={defeatResult.bossName}
+          bossLevel={defeatResult.bossLevel}
+          defeatText={defeatResult.defeatText}
+          critSecret={defeatResult.critSecret}
+          bonusDamage={defeatResult.damage}
+          killerName={profile.display_name}
+          onDone={() => setDefeatResult(null)}
+        />
+      )}
     <AppShell>
       {/* Header */}
       <div className="bg-slate-900 px-5 pt-12 pb-4 border-b border-slate-700">
@@ -791,10 +870,19 @@ export default function GroupPage() {
       </div>
 
       {/* Main tab switcher */}
-      <div className="flex gap-1 px-4 py-3 bg-slate-900 border-b border-slate-700">
+      <div className="flex gap-1 px-4 py-3 bg-slate-900 border-b border-slate-700 overflow-x-auto scrollbar-hide">
+        <button
+          onClick={() => setActiveTab('boss')}
+          className={`flex-shrink-0 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+            activeTab === 'boss' ? 'bg-rose-500 text-white' : 'bg-slate-800 text-slate-400'
+          }`}
+        >
+          <Swords size={14} className="inline mr-1 -mt-0.5" />
+          Boss
+        </button>
         <button
           onClick={() => setActiveTab('leaderboard')}
-          className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${
+          className={`flex-shrink-0 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
             activeTab === 'leaderboard' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400'
           }`}
         >
@@ -803,7 +891,7 @@ export default function GroupPage() {
         </button>
         <button
           onClick={() => setActiveTab('feed')}
-          className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${
+          className={`flex-shrink-0 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
             activeTab === 'feed' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400'
           }`}
         >
@@ -811,7 +899,7 @@ export default function GroupPage() {
         </button>
         <button
           onClick={() => setActiveTab('challenges')}
-          className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${
+          className={`flex-shrink-0 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
             activeTab === 'challenges' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400'
           }`}
         >
@@ -820,7 +908,7 @@ export default function GroupPage() {
         </button>
         <button
           onClick={() => setActiveTab('settings')}
-          className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${
+          className={`flex-shrink-0 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
             activeTab === 'settings' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400'
           }`}
         >
@@ -849,6 +937,27 @@ export default function GroupPage() {
       )}
 
       <div className="flex flex-col gap-4 px-4 py-4">
+        {/* ====================== BOSS TAB ====================== */}
+        {activeTab === 'boss' && (
+          <>
+            <BossCard
+              encounter={bossEncounter}
+              attacks={bossAttacks}
+              weeklyEP={weeklyEP}
+              onAttack={handleBossAttack}
+            />
+            <DamageLeaderboard
+              entries={buildDamageEntries(bossAttacks, members)}
+              currentUserId={user!.id}
+            />
+            <BossTimeline
+              history={bossHistory}
+              currentEncounter={bossEncounter}
+              currentWeek={weekNumber}
+            />
+          </>
+        )}
+
         {/* ====================== LEADERBOARD TAB ====================== */}
         {activeTab === 'leaderboard' && (
           <>
@@ -965,5 +1074,32 @@ export default function GroupPage() {
         )}
       </div>
     </AppShell>
+    </>
   );
+}
+
+function buildDamageEntries(
+  attacks: BossAttackWithUser[],
+  members: Profile[]
+) {
+  const damageMap = new Map<string, number>();
+  for (const attack of attacks) {
+    damageMap.set(attack.user_id, (damageMap.get(attack.user_id) || 0) + attack.damage);
+  }
+
+  const nameMap = new Map<string, string>();
+  for (const m of members) {
+    nameMap.set(m.id, m.display_name);
+  }
+  for (const attack of attacks) {
+    if (attack.user && !nameMap.has(attack.user_id)) {
+      nameMap.set(attack.user_id, attack.user.display_name);
+    }
+  }
+
+  return Array.from(damageMap.entries()).map(([userId, totalDamage]) => ({
+    userId,
+    displayName: nameMap.get(userId) || 'Okänd',
+    totalDamage,
+  }));
 }

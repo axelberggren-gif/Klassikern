@@ -2,17 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Trophy, Flame, Zap, Swords } from 'lucide-react';
+import { Trophy, Flame, Zap } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import NotificationBell from '@/components/NotificationBell';
 import StreakBadge from '@/components/dashboard/StreakBadge';
 import TodayCard from '@/components/dashboard/TodayCard';
 import WeekSummary from '@/components/dashboard/WeekSummary';
 import RaceCountdown from '@/components/dashboard/RaceCountdown';
-import BossCard from '@/components/boss/BossCard';
-import BossTimeline from '@/components/boss/BossTimeline';
-import BossDefeatCinematic from '@/components/boss/BossDefeatCinematic';
-import DamageLeaderboard from '@/components/leaderboard/DamageLeaderboard';
+import RaceMap from '@/components/dashboard/RaceMap';
 import EnhancedFeed from '@/components/group/EnhancedFeed';
 import type { EnhancedFeedItem } from '@/components/group/EnhancedFeed';
 import PowerRankings from '@/components/group/PowerRankings';
@@ -27,11 +24,7 @@ import {
   getUserSessions,
   getActivityFeed,
   getUserGroupId,
-  getActiveBossEncounter,
-  getEncounterAttacks,
-  getGroupBossHistory,
-  getUnusedWeeklyEP,
-  attackBossWeekly,
+  getGroupCyclingDistance,
   toggleReaction,
   addFeedComment,
   deleteFeedComment,
@@ -44,16 +37,12 @@ import {
   getActiveChallenge,
   getChallengeProgress,
 } from '@/lib/store';
-import type { WeeklyEPInfo, AttackBossWeeklyResult } from '@/lib/store';
 import type { WeeklyWinnerResult, SportLeaderboardEntry } from '@/lib/store/leaderboard';
 import { getCurrentWeekNumber, getPlanForWeek, TRAINING_PLAN } from '@/lib/training-plan';
-import { getWeekRange } from '@/lib/date-utils';
 import type {
   Profile,
   PlannedSession,
   Session,
-  BossEncounterWithBoss,
-  BossAttackWithUser,
   SportType,
   ChallengeMetric,
   CallOutChallengeWithUsers,
@@ -69,24 +58,17 @@ import type {
 type DashboardTab = 'feed' | 'leaderboard';
 type LeaderboardSubTab = 'overview' | 'power' | 'weekly' | 'sport' | 'h2h';
 
-type LeaderboardType = 'damage' | 'ep' | 'streak';
+type LeaderboardType = 'ep' | 'streak';
 
 interface LeaderboardConfig {
   key: LeaderboardType;
   label: string;
   icon: React.ReactNode;
-  getValue: (user: Profile, damageMap?: Map<string, number>) => number;
+  getValue: (user: Profile) => number;
   formatValue: (value: number) => string;
 }
 
 const LEADERBOARD_CONFIGS: LeaderboardConfig[] = [
-  {
-    key: 'damage',
-    label: 'Bossskada denna vecka',
-    icon: <Swords size={16} className="text-rose-500" />,
-    getValue: (user, damageMap) => damageMap?.get(user.id) || 0,
-    formatValue: (v) => `${v} DMG`,
-  },
   {
     key: 'ep',
     label: 'Total EP',
@@ -130,15 +112,13 @@ function MiniLeaderboard({
   users,
   config,
   currentUserId,
-  damageMap,
 }: {
   users: Profile[];
   config: LeaderboardConfig;
   currentUserId: string;
-  damageMap?: Map<string, number>;
 }) {
   const sorted = [...users].sort(
-    (a, b) => config.getValue(b, damageMap) - config.getValue(a, damageMap)
+    (a, b) => config.getValue(b) - config.getValue(a)
   );
 
   return (
@@ -149,7 +129,7 @@ function MiniLeaderboard({
       </div>
       <div className="divide-y divide-slate-800">
         {sorted.map((user, index) => {
-          const value = config.getValue(user, damageMap);
+          const value = config.getValue(user);
           const isCurrentUser = user.id === currentUserId;
           const isFirst = index === 0 && value > 0;
 
@@ -224,21 +204,16 @@ export default function DashboardPage() {
   const [weekNumber, setWeekNumber] = useState(1);
   const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [totalSessions, setTotalSessions] = useState(0);
-  const [bossEncounter, setBossEncounter] = useState<BossEncounterWithBoss | null>(null);
-  const [bossAttacks, setBossAttacks] = useState<BossAttackWithUser[]>([]);
-  const [bossHistory, setBossHistory] = useState<BossEncounterWithBoss[]>([]);
-  const [weeklyEP, setWeeklyEP] = useState<WeeklyEPInfo | null>(null);
   const [groupId, setGroupId] = useState<string | null>(null);
-  const [defeatResult, setDefeatResult] = useState<AttackBossWeeklyResult | null>(null);
   const [challenge, setChallenge] = useState<WeeklyChallenge | null>(null);
   const [challengeProgress, setChallengeProgress] = useState<ChallengeParticipantProgress[]>([]);
+  const [cyclingDistances, setCyclingDistances] = useState<Map<string, number>>(new Map());
 
   // Tabs
   const [activeTab, setActiveTab] = useState<DashboardTab>('feed');
   const [leaderboardSubTab, setLeaderboardSubTab] = useState<LeaderboardSubTab>('overview');
 
   // Leaderboard data
-  const [damageMap, setDamageMap] = useState<Map<string, number>>(new Map());
   const [weeklySessionMap, setWeeklySessionMap] = useState<Map<string, number>>(new Map());
   const [weeklyEPMap, setWeeklyEPMap] = useState<Map<string, number>>(new Map());
   const [powerRankings, setPowerRankings] = useState<PowerRanking[]>([]);
@@ -292,31 +267,15 @@ export default function DashboardPage() {
       setGroupId(userGroupId);
 
       if (userGroupId) {
-        const [feedData, encounter, history, activeChallenge] = await Promise.all([
+        const memberIds = groupMembers.map((m) => m.id);
+        const [feedData, activeChallenge, distances] = await Promise.all([
           getActivityFeed(userGroupId),
-          getActiveBossEncounter(userGroupId),
-          getGroupBossHistory(userGroupId),
           getActiveChallenge(userGroupId),
+          getGroupCyclingDistance(memberIds, new Date().getFullYear()),
         ]);
         setFeed(feedData as EnhancedFeedItem[]);
-        setBossEncounter(encounter);
-        setBossHistory(history);
         setChallenge(activeChallenge);
-
-        let dMap = new Map<string, number>();
-        if (encounter) {
-          const [attacks, epInfo] = await Promise.all([
-            getEncounterAttacks(encounter.id),
-            getUnusedWeeklyEP(user.id, encounter.id),
-          ]);
-          setBossAttacks(attacks);
-          setWeeklyEP(epInfo);
-
-          for (const atk of attacks) {
-            dMap.set(atk.user_id, (dMap.get(atk.user_id) || 0) + atk.damage);
-          }
-        }
-        setDamageMap(dMap);
+        setCyclingDistances(distances);
 
         // Load challenge progress
         if (activeChallenge && groupMembers.length > 0) {
@@ -338,7 +297,6 @@ export default function DashboardPage() {
 
         const { createClient } = await import('@/lib/supabase');
         const supabase = createClient();
-        const memberIds = groupMembers.map((m) => m.id);
         const { data: wSessions } = await supabase
           .from('sessions')
           .select('user_id, ep_earned')
@@ -355,7 +313,7 @@ export default function DashboardPage() {
         setWeeklySessionMap(wSessionMap);
         setWeeklyEPMap(wEPMap);
 
-        const rankings = getPowerRankings(groupMembers, dMap, wSessionMap);
+        const rankings = getPowerRankings(groupMembers, new Map(), wSessionMap);
         setPowerRankings(rankings);
 
         // Secondary data in background
@@ -505,54 +463,7 @@ export default function DashboardPage() {
     );
   }
 
-  // Build damage leaderboard entries from attacks
-  const damageEntries = buildDamageEntries(bossAttacks, members);
-
-  const handleBossAttack = async () => {
-    if (!user || !groupId) return null;
-    const result = await attackBossWeekly({
-      userId: user.id,
-      groupId,
-      userStreak: profile.current_streak,
-    });
-    if (result) {
-      if (result.isKillingBlow && result.defeatText) {
-        setDefeatResult(result);
-      }
-      const encounter = await getActiveBossEncounter(groupId);
-      setBossEncounter(encounter);
-      if (encounter) {
-        const [attacks, epInfo] = await Promise.all([
-          getEncounterAttacks(encounter.id),
-          getUnusedWeeklyEP(user.id, encounter.id),
-        ]);
-        setBossAttacks(attacks);
-        setWeeklyEP(epInfo);
-      } else {
-        const history = await getGroupBossHistory(groupId);
-        setBossHistory(history);
-        setWeeklyEP(null);
-      }
-    }
-    return result;
-  };
-
-  const accumulatedHours = weeklyEP ? Math.round((weeklyEP.totalMinutes / 60) * 10) / 10 : 0;
-
   return (
-    <>
-      {defeatResult && defeatResult.defeatText && (
-        <BossDefeatCinematic
-          bossEmoji={defeatResult.bossEmoji}
-          bossName={defeatResult.bossName}
-          bossLevel={defeatResult.bossLevel}
-          defeatText={defeatResult.defeatText}
-          critSecret={defeatResult.critSecret}
-          bonusDamage={defeatResult.damage}
-          killerName={profile.display_name}
-          onDone={() => setDefeatResult(null)}
-        />
-      )}
     <AppShell>
       {/* Compact Dark Header */}
       <div className="px-5 pt-12 pb-4">
@@ -566,11 +477,6 @@ export default function DashboardPage() {
             </div>
           </Link>
           <div className="flex items-center gap-2">
-            {accumulatedHours > 0 && (
-              <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-400">
-                {accumulatedHours}h
-              </span>
-            )}
             <StreakBadge streak={profile.current_streak} />
             <span className="text-xs font-semibold text-slate-400">
               Kapitel {weekNumber}
@@ -597,17 +503,11 @@ export default function DashboardPage() {
           </span>
         </Link>
 
-        {/* Boss Card */}
-        <BossCard encounter={bossEncounter} attacks={bossAttacks} weeklyEP={weeklyEP} onAttack={handleBossAttack} />
-
-        {/* Compact Damage Leaderboard */}
-        <DamageLeaderboard entries={damageEntries} currentUserId={user!.id} />
-
-        {/* Boss Timeline */}
-        <BossTimeline
-          history={bossHistory}
-          currentEncounter={bossEncounter}
-          currentWeek={weekNumber}
+        {/* Cycling race map */}
+        <RaceMap
+          members={members}
+          distances={cyclingDistances}
+          currentUserId={user!.id}
         />
 
         {/* Race countdown */}
@@ -703,7 +603,6 @@ export default function DashboardPage() {
                     users={members}
                     config={config}
                     currentUserId={user!.id}
-                    damageMap={damageMap}
                   />
                 ))}
                 <div className="rounded-2xl bg-slate-900 border border-slate-700 p-5">
@@ -746,7 +645,7 @@ export default function DashboardPage() {
               <HeadToHead
                 members={members}
                 currentUserId={user!.id}
-                damageMap={damageMap}
+                damageMap={new Map()}
                 weeklySessionMap={weeklySessionMap}
                 weeklyEPMap={weeklyEPMap}
               />
@@ -771,32 +670,5 @@ export default function DashboardPage() {
         </div>
       </div>
     </AppShell>
-    </>
   );
-}
-
-function buildDamageEntries(
-  attacks: BossAttackWithUser[],
-  members: Profile[]
-) {
-  const damageMap = new Map<string, number>();
-  for (const attack of attacks) {
-    damageMap.set(attack.user_id, (damageMap.get(attack.user_id) || 0) + attack.damage);
-  }
-
-  const nameMap = new Map<string, string>();
-  for (const m of members) {
-    nameMap.set(m.id, m.display_name);
-  }
-  for (const attack of attacks) {
-    if (attack.user && !nameMap.has(attack.user_id)) {
-      nameMap.set(attack.user_id, attack.user.display_name);
-    }
-  }
-
-  return Array.from(damageMap.entries()).map(([userId, totalDamage]) => ({
-    userId,
-    displayName: nameMap.get(userId) || 'Okänd',
-    totalDamage,
-  }));
 }

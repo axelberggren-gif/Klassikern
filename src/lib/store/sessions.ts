@@ -55,6 +55,61 @@ export async function uploadSessionPhoto(
   return urlData.publicUrl;
 }
 
+export async function uploadRaceIcon(
+  userId: string,
+  file: File
+): Promise<string | null> {
+  const supabase = createClient();
+  const path = `${userId}/icon.png`;
+
+  const { error } = await supabase.storage
+    .from('race-icons')
+    .upload(path, file, {
+      contentType: 'image/png',
+      upsert: true,
+      cacheControl: '3600',
+    });
+
+  if (error) {
+    console.error('Error uploading race icon:', error);
+    return null;
+  }
+
+  const { data: urlData } = supabase.storage
+    .from('race-icons')
+    .getPublicUrl(path);
+
+  return `${urlData.publicUrl}?t=${Date.now()}`;
+}
+
+export async function getGroupCyclingDistance(
+  memberIds: string[],
+  year: number
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  if (memberIds.length === 0) return result;
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('user_id, distance_km')
+    .in('user_id', memberIds)
+    .eq('sport_type', 'cycling')
+    .gte('date', `${year}-01-01`)
+    .lte('date', `${year}-12-31`);
+
+  if (error) {
+    console.error('Error fetching cycling distance:', error);
+    return result;
+  }
+
+  for (const row of data ?? []) {
+    if (row.distance_km == null) continue;
+    result.set(row.user_id, (result.get(row.user_id) ?? 0) + Number(row.distance_km));
+  }
+  return result;
+}
+
 export async function logSession(params: {
   userId: string;
   groupId: string | null;
