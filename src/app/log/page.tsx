@@ -28,6 +28,7 @@ export default function LogSessionPage() {
   const [pendingBadges, setPendingBadges] = useState<Badge[]>([]);
   const [currentBadge, setCurrentBadge] = useState<Badge | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [groupId, setGroupId] = useState<string | null>(null);
   const MAX_PHOTOS = 3;
   const [photos, setPhotos] = useState<File[]>([]);
@@ -66,27 +67,32 @@ export default function LogSessionPage() {
   async function handleSubmit() {
     if (!user || !profile || submitting) return;
     setSubmitting(true);
+    setSubmitError(null);
 
-    let photoUrls: string[] = [];
-    if (photos.length > 0) {
-      photoUrls = await uploadSessionPhotos(user.id, photos);
-    }
+    try {
+      let photoUrls: string[] = [];
+      if (photos.length > 0) {
+        photoUrls = await uploadSessionPhotos(user.id, photos);
+      }
 
-    const result = await logSession({
-      userId: user.id,
-      groupId,
-      currentProfile: profile,
-      sportType,
-      durationMinutes: duration,
-      distanceKm: distance ? parseFloat(distance) : null,
-      effortRating: effort,
-      note,
-      plannedSessionId: todayPlanned?.sport_type === sportType ? todayPlanned.id : null,
-      photoUrls,
-    });
+      const result = await logSession({
+        userId: user.id,
+        groupId,
+        currentProfile: profile,
+        sportType,
+        durationMinutes: duration,
+        distanceKm: distance ? parseFloat(distance) : null,
+        effortRating: effort,
+        note,
+        plannedSessionId: todayPlanned?.sport_type === sportType ? todayPlanned.id : null,
+        photoUrls,
+      });
 
-    setSubmitting(false);
-    if (result) {
+      if (!result) {
+        setSubmitError('Kunde inte spara passet. Kontrollera anslutningen och försök igen.');
+        return;
+      }
+
       // Attack boss if user is in a group
       if (groupId) {
         const bossResult = await attackBoss({
@@ -109,6 +115,11 @@ export default function LogSessionPage() {
         );
         setPendingBadges(earned);
       }
+    } catch (err) {
+      console.error('Error logging session:', err);
+      setSubmitError('Något gick fel när passet skulle sparas. Försök igen.');
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -436,6 +447,15 @@ export default function LogSessionPage() {
             </span> EP
           </p>
         </div>
+
+        {submitError && (
+          <div
+            role="alert"
+            className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300"
+          >
+            {submitError}
+          </div>
+        )}
 
         {/* Submit button */}
         <button
