@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Minus, Plus, ArrowLeft, Camera, X } from 'lucide-react';
+import { Minus, Plus, ArrowLeft, Camera, X, Star } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import SessionReward from '@/components/SessionReward';
 import BadgeUnlockModal from '@/components/BadgeUnlockModal';
 import { SPORT_CONFIG, EFFORT_LABELS, ACTIVE_SPORT_TYPES } from '@/lib/sport-config';
 import { useAuth } from '@/lib/auth';
-import { logSession, getUserGroupId, getAllBadges, attackBoss, uploadSessionPhoto } from '@/lib/store';
+import { logSession, getUserGroupId, getAllBadges, attackBoss, uploadSessionPhotos } from '@/lib/store';
 import { getPlanForWeek } from '@/lib/training-plan';
 import { getCurrentWeekNumber } from '@/lib/date-utils';
 import type { PersonalRecord } from '@/lib/pr-checker';
@@ -29,8 +29,9 @@ export default function LogSessionPage() {
   const [currentBadge, setCurrentBadge] = useState<Badge | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const MAX_PHOTOS = 3;
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [bossDamage, setBossDamage] = useState<{
     damage: number;
@@ -66,9 +67,9 @@ export default function LogSessionPage() {
     if (!user || !profile || submitting) return;
     setSubmitting(true);
 
-    let photoUrl: string | null = null;
-    if (photo) {
-      photoUrl = await uploadSessionPhoto(user.id, photo);
+    let photoUrls: string[] = [];
+    if (photos.length > 0) {
+      photoUrls = await uploadSessionPhotos(user.id, photos);
     }
 
     const result = await logSession({
@@ -81,7 +82,7 @@ export default function LogSessionPage() {
       effortRating: effort,
       note,
       plannedSessionId: todayPlanned?.sport_type === sportType ? todayPlanned.id : null,
-      photoUrl,
+      photoUrls,
     });
 
     setSubmitting(false);
@@ -313,35 +314,102 @@ export default function LogSessionPage() {
         {/* Photo upload */}
         <div>
           <label className="mb-2 block text-sm font-semibold text-slate-200">
-            Foto <span className="text-slate-400 font-normal">(valfritt)</span>
+            Foton <span className="text-slate-400 font-normal">(valfritt, max {MAX_PHOTOS})</span>
           </label>
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
+            multiple
             className="hidden"
             onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                setPhoto(file);
-                setPhotoPreview(URL.createObjectURL(file));
-              }
+              const picked = Array.from(e.target.files ?? []);
+              if (picked.length === 0) return;
+              setPhotos((prev) => {
+                const room = MAX_PHOTOS - prev.length;
+                const next = [...prev, ...picked.slice(0, room)];
+                setPhotoPreviews((oldPreviews) => {
+                  const added = next
+                    .slice(prev.length)
+                    .map((f) => URL.createObjectURL(f));
+                  return [...oldPreviews, ...added];
+                });
+                return next;
+              });
+              if (fileInputRef.current) fileInputRef.current.value = '';
             }}
           />
-          {photoPreview ? (
-            <div className="relative w-full rounded-xl overflow-hidden">
-              <img src={photoPreview} alt="Preview" className="w-full h-48 object-cover rounded-xl" />
-              <button
-                onClick={() => {
-                  setPhoto(null);
-                  setPhotoPreview(null);
-                  if (fileInputRef.current) fileInputRef.current.value = '';
-                }}
-                className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white"
-              >
-                <X size={16} />
-              </button>
+          {photoPreviews.length > 0 ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-2">
+                {photoPreviews.map((preview, idx) => (
+                  <div
+                    key={preview}
+                    className={`relative aspect-square rounded-xl overflow-hidden border-2 ${
+                      idx === 0 ? 'border-emerald-500' : 'border-transparent'
+                    }`}
+                  >
+                    <img
+                      src={preview}
+                      alt={`Foto ${idx + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+                    {idx === 0 && (
+                      <span className="absolute bottom-1 left-1 rounded-md bg-emerald-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        Omslag
+                      </span>
+                    )}
+                    {idx !== 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhotos((prev) => {
+                            const next = [...prev];
+                            const [moved] = next.splice(idx, 1);
+                            next.unshift(moved);
+                            return next;
+                          });
+                          setPhotoPreviews((prev) => {
+                            const next = [...prev];
+                            const [moved] = next.splice(idx, 1);
+                            next.unshift(moved);
+                            return next;
+                          });
+                        }}
+                        title="Sätt som omslag"
+                        className="absolute bottom-1 left-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
+                      >
+                        <Star size={12} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPhotos((prev) => prev.filter((_, i) => i !== idx));
+                        setPhotoPreviews((prev) => {
+                          URL.revokeObjectURL(prev[idx]);
+                          return prev.filter((_, i) => i !== idx);
+                        });
+                      }}
+                      className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+                {photoPreviews.length < MAX_PHOTOS && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-slate-600 bg-slate-900 text-slate-400 hover:border-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    <Plus size={20} />
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-slate-400">
+                Första bilden visas som omslag. Tryck på <Star size={10} className="inline" /> för att byta.
+              </p>
             </div>
           ) : (
             <button
@@ -350,7 +418,7 @@ export default function LogSessionPage() {
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-600 bg-slate-900 py-4 text-sm text-slate-400 hover:border-slate-500 hover:text-slate-300 transition-colors"
             >
               <Camera size={18} />
-              Lägg till foto
+              Lägg till foton
             </button>
           )}
         </div>

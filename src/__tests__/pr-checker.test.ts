@@ -15,7 +15,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     note: null,
     ep_earned: 15,
     is_bonus: false,
-    photo_url: null,
+    photo_urls: [],
     strava_activity_id: null,
     created_at: '2026-03-20T10:00:00Z',
     updated_at: '2026-03-20T10:00:00Z',
