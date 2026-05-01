@@ -82,6 +82,9 @@ export async function uploadRaceIcon(
   return `${urlData.publicUrl}?t=${Date.now()}`;
 }
 
+// Cycling race resets — only count sessions logged from this date onward.
+export const CYCLING_RACE_START_DATE = '2026-05-01';
+
 export async function getGroupCyclingDistance(
   memberIds: string[],
   year: number
@@ -95,7 +98,7 @@ export async function getGroupCyclingDistance(
     .select('user_id, distance_km')
     .in('user_id', memberIds)
     .eq('sport_type', 'cycling')
-    .gte('date', `${year}-01-01`)
+    .gte('date', CYCLING_RACE_START_DATE)
     .lte('date', `${year}-12-31`);
 
   if (error) {
