@@ -55,6 +55,16 @@ export async function uploadSessionPhoto(
   return urlData.publicUrl;
 }
 
+export async function uploadSessionPhotos(
+  userId: string,
+  files: File[]
+): Promise<string[]> {
+  const results = await Promise.all(
+    files.map((file) => uploadSessionPhoto(userId, file))
+  );
+  return results.filter((url): url is string => url !== null);
+}
+
 export async function uploadRaceIcon(
   userId: string,
   file: File
@@ -123,7 +133,7 @@ export async function logSession(params: {
   effortRating: EffortRating;
   note: string;
   plannedSessionId: string | null;
-  photoUrl?: string | null;
+  photoUrls?: string[];
 }): Promise<LogSessionResult | null> {
   const supabase = createClient();
 
@@ -147,7 +157,7 @@ export async function logSession(params: {
       note: params.note || null,
       ep_earned: ep,
       is_bonus: params.plannedSessionId === null,
-      photo_url: params.photoUrl || null,
+      photo_urls: params.photoUrls ?? [],
     })
     .select()
     .single();
@@ -180,7 +190,7 @@ export async function logSession(params: {
         duration: params.durationMinutes,
         ep,
         note: params.note || null,
-        photo_url: params.photoUrl || null,
+        photo_urls: params.photoUrls ?? [],
       },
     });
   }

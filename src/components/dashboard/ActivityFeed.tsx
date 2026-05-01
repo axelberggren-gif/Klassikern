@@ -3,7 +3,19 @@
 import { formatDistanceToNow } from 'date-fns';
 import { sv } from 'date-fns/locale';
 import { SPORT_CONFIG } from '@/lib/sport-config';
+import PhotoCarousel from '@/components/PhotoCarousel';
 import type { ActivityFeedItemWithUser } from '@/types/database';
+
+function sessionPhotoUrls(data: Record<string, unknown>): string[] {
+  const arr = data.photo_urls;
+  if (Array.isArray(arr)) {
+    return arr.filter((u): u is string => typeof u === 'string' && u.length > 0);
+  }
+  if (typeof data.photo_url === 'string' && data.photo_url.length > 0) {
+    return [data.photo_url];
+  }
+  return [];
+}
 
 interface ActivityFeedProps {
   items: ActivityFeedItemWithUser[];
@@ -119,13 +131,14 @@ export default function ActivityFeed({ items, maxItems = 5 }: ActivityFeedProps)
                   &quot;{String((item.event_data as Record<string, unknown>).note)}&quot;
                 </p>
               )}
-              {item.event_type === 'session_logged' && Boolean((item.event_data as Record<string, unknown>).photo_url) && (
-                <img
-                  src={String((item.event_data as Record<string, unknown>).photo_url)}
-                  alt="Traningsfoto"
-                  className="mt-2 w-full h-40 object-cover rounded-lg border border-slate-700"
-                />
-              )}
+              {item.event_type === 'session_logged' && (() => {
+                const urls = sessionPhotoUrls(item.event_data as Record<string, unknown>);
+                return urls.length > 0 ? (
+                  <div className="mt-2 rounded-lg border border-slate-700 overflow-hidden">
+                    <PhotoCarousel urls={urls} imgClassName="h-40" />
+                  </div>
+                ) : null;
+              })()}
               <p className="mt-0.5 text-xs text-slate-400">
                 {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: sv })}
               </p>

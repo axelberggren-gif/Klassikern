@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { sv } from 'date-fns/locale';
 import { MessageCircle, Plus, Send, Trash2 } from 'lucide-react';
+import PhotoCarousel from '@/components/PhotoCarousel';
 import { SPORT_CONFIG, EFFORT_LABELS } from '@/lib/sport-config';
 import type {
   ActivityFeedItemWithUser,
@@ -130,6 +131,18 @@ function aggregateReactions(
 // ---------------------------------------------------------------------------
 
 /** Session badges (effort, marathon, monster) */
+function sessionPhotoUrls(data: Record<string, unknown>): string[] {
+  const arr = data.photo_urls;
+  if (Array.isArray(arr)) {
+    return arr.filter((u): u is string => typeof u === 'string' && u.length > 0);
+  }
+  // Backwards compatibility: legacy single-photo events used `photo_url`
+  if (typeof data.photo_url === 'string' && data.photo_url.length > 0) {
+    return [data.photo_url];
+  }
+  return [];
+}
+
 function SessionBadges({ data }: { data: Record<string, unknown> }) {
   const badges: { label: string; className: string }[] = [];
 
@@ -516,14 +529,18 @@ export default function EnhancedFeed({
                       </p>
                     )}
 
-                    {/* Session photo */}
-                    {item.event_type === 'session_logged' && Boolean(data.photo_url) && (
-                      <img
-                        src={String(data.photo_url)}
-                        alt="Träningsfoto"
-                        className="mt-2 w-full h-40 object-cover rounded-lg border border-slate-700"
-                      />
-                    )}
+                    {/* Session photos */}
+                    {item.event_type === 'session_logged' && (() => {
+                      const urls = sessionPhotoUrls(data);
+                      return urls.length > 0 ? (
+                        <div className="mt-2 rounded-lg border border-slate-700 overflow-hidden">
+                          <PhotoCarousel
+                            urls={urls}
+                            imgClassName="h-40"
+                          />
+                        </div>
+                      ) : null;
+                    })()}
 
                     {/* Session badges (effort, marathon, monster) */}
                     {item.event_type === 'session_logged' && <SessionBadges data={data} />}

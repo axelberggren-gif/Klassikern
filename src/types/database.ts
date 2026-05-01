@@ -255,7 +255,7 @@ export interface Database {
           ep_earned: number;
           is_bonus: boolean;
           strava_activity_id: number | null;
-          photo_url: string | null;
+          photo_urls: string[];
           created_at: string;
           updated_at: string;
         };
@@ -272,7 +272,7 @@ export interface Database {
           ep_earned?: number;
           is_bonus?: boolean;
           strava_activity_id?: number | null;
-          photo_url?: string | null;
+          photo_urls?: string[];
           created_at?: string;
           updated_at?: string;
         };
@@ -289,7 +289,7 @@ export interface Database {
           ep_earned?: number;
           is_bonus?: boolean;
           strava_activity_id?: number | null;
-          photo_url?: string | null;
+          photo_urls?: string[];
           updated_at?: string;
         };
         Relationships: [];

@@ -18,6 +18,7 @@ export {
   getUserSessions,
   logSession,
   uploadSessionPhoto,
+  uploadSessionPhotos,
   uploadRaceIcon,
   getGroupCyclingDistance,
 } from './sessions';
