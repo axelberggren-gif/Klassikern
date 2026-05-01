@@ -89,13 +89,20 @@ export async function getGroupCyclingDistance(
   const result = new Map<string, number>();
   if (memberIds.length === 0) return result;
 
+  // Race "starts now" — only cycling sessions on/after this date count toward
+  // the dashboard race map. Old sessions are untouched (badges, stats, etc.
+  // still see them). Bump this when starting a new race.
+  const RACE_START_DATE = '2026-04-30';
+  const startDate =
+    `${year}-01-01` < RACE_START_DATE ? RACE_START_DATE : `${year}-01-01`;
+
   const supabase = createClient();
   const { data, error } = await supabase
     .from('sessions')
     .select('user_id, distance_km')
     .in('user_id', memberIds)
     .eq('sport_type', 'cycling')
-    .gte('date', `${year}-01-01`)
+    .gte('date', startDate)
     .lte('date', `${year}-12-31`);
 
   if (error) {
