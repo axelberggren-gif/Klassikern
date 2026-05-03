@@ -72,7 +72,15 @@ export default function LogSessionPage() {
     try {
       let photoUrls: string[] = [];
       if (photos.length > 0) {
-        photoUrls = await uploadSessionPhotos(user.id, photos);
+        try {
+          photoUrls = await uploadSessionPhotos(user.id, photos);
+        } catch (err) {
+          console.error('Photo upload failed:', err);
+          setSubmitError(
+            `Kunde inte ladda upp foton: ${err instanceof Error ? err.message : String(err)}`
+          );
+          return;
+        }
       }
 
       const result = await logSession({
@@ -88,21 +96,25 @@ export default function LogSessionPage() {
         photoUrls,
       });
 
-      if (!result) {
-        setSubmitError('Kunde inte spara passet. Kontrollera anslutningen och försök igen.');
+      if ('error' in result) {
+        setSubmitError(`Kunde inte spara passet: ${result.error}`);
         return;
       }
 
       // Attack boss if user is in a group
       if (groupId) {
-        const bossResult = await attackBoss({
-          userId: user.id,
-          groupId,
-          sessionId: result.session.id,
-          sportType,
-          epEarned: result.session.ep_earned,
-        });
-        setBossDamage(bossResult);
+        try {
+          const bossResult = await attackBoss({
+            userId: user.id,
+            groupId,
+            sessionId: result.session.id,
+            sportType,
+            epEarned: result.session.ep_earned,
+          });
+          setBossDamage(bossResult);
+        } catch (err) {
+          console.error('Boss attack failed (non-fatal):', err);
+        }
       }
 
       setReward(result.session);
@@ -117,7 +129,9 @@ export default function LogSessionPage() {
       }
     } catch (err) {
       console.error('Error logging session:', err);
-      setSubmitError('Något gick fel när passet skulle sparas. Försök igen.');
+      setSubmitError(
+        `Något gick fel: ${err instanceof Error ? err.message : String(err)}`
+      );
     } finally {
       setSubmitting(false);
     }

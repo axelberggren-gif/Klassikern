@@ -38,7 +38,7 @@ export async function syncPendingSessions(): Promise<number> {
         plannedSessionId: entry.data.plannedSessionId,
       });
 
-      if (result) {
+      if ('session' in result) {
         await removePendingSession(entry.id!);
         synced++;
       }
