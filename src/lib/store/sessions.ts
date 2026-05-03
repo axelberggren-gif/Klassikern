@@ -31,6 +31,12 @@ export interface LogSessionResult {
   personalRecords: PersonalRecord[];
 }
 
+export interface LogSessionError {
+  error: string;
+}
+
+export type LogSessionOutcome = LogSessionResult | LogSessionError;
+
 export async function uploadSessionPhoto(
   userId: string,
   file: File
@@ -134,7 +140,7 @@ export async function logSession(params: {
   note: string;
   plannedSessionId: string | null;
   photoUrls?: string[];
-}): Promise<LogSessionResult | null> {
+}): Promise<LogSessionOutcome> {
   const supabase = createClient();
 
   const ep = calculateEP(
@@ -164,7 +170,9 @@ export async function logSession(params: {
 
   if (sessionError || !session) {
     console.error('Error logging session:', sessionError);
-    return null;
+    const code = sessionError?.code ? ` [${sessionError.code}]` : '';
+    const detail = sessionError?.message ?? 'Insert returned no row';
+    return { error: `sessions.insert${code}: ${detail}` };
   }
 
   const newStreak = params.currentProfile.current_streak + 1;
