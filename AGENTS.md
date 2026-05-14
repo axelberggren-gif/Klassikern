@@ -76,3 +76,34 @@ Before completing any code modification task, verify:
 - Generate docs: `npx gitnexus wiki`
 
 <!-- gitnexus:end -->
+
+## Cursor Cloud specific instructions
+
+### Overview
+
+Klassikern is a single Next.js 16 webapp (no Docker, no local database). The backend is a hosted Supabase instance. See `CLAUDE.md` for full architecture, commands, and patterns.
+
+### Running the app without Supabase credentials
+
+Copy `.env.test` to `.env.local` to enable test mode (`NEXT_PUBLIC_TEST_MODE=true`), which bypasses real Supabase auth and uses a mock user. This is sufficient for verifying page rendering, running builds, and running unit tests.
+
+```bash
+cp .env.test .env.local
+npm run dev    # Dev server on port 3000
+```
+
+### Key commands
+
+All standard commands are documented in `CLAUDE.md` under "Commands". Quick reference:
+
+- `npm run dev` — dev server (Turbopack, port 3000)
+- `npm run build` — production build (webpack, verifies TypeScript)
+- `npm run lint` — ESLint (pre-existing lint errors in `public/sw.js` and React hooks rules are known; the build still succeeds)
+- `npm test` — Vitest unit tests
+
+### Gotchas
+
+- The `public/sw.js` is a generated service worker file that produces many lint warnings/errors. These are pre-existing and do not affect the build.
+- `npm run lint` exits with code 1 due to pre-existing errors (React hooks `set-state-in-effect`, `Math.random` purity rules, `prefer-const`). The build (`npm run build`) succeeds despite these.
+- The build uses webpack explicitly (`next build --webpack`), not Turbopack. Dev mode uses Turbopack.
+- The `middleware.ts` deprecation warning about "proxy" is expected on Next.js 16.
