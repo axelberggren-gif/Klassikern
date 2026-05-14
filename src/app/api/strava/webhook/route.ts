@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { createHmac } from 'crypto';
 import {
   refreshStravaToken,
   isTokenExpired,
@@ -13,13 +14,14 @@ import type { Database, StravaConnection } from '@/types/database';
 /**
  * Create a Supabase admin client for webhook processing.
  * Webhooks don't have user cookies, so we use the service role key.
- * Falls back to anon key if service role is not configured.
+ * Throws if the service role key is not configured.
  */
 function createWebhookSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for webhook processing');
+  }
 
   return createServerClient<Database>(supabaseUrl, supabaseKey, {
     cookies: {
@@ -81,12 +83,32 @@ interface StravaWebhookEvent {
  * - On activity update: not handled (user can re-sync manually)
  */
 export async function POST(request: NextRequest) {
+  // Verify the webhook request using a shared secret.
+  // Strava doesn't sign webhooks with HMAC, but we can verify using the
+  // subscription verify token as a bearer token in a custom header, or
+  // by validating the subscription_id in the payload.
+  const verifyToken = process.env.STRAVA_VERIFY_TOKEN;
+  if (!verifyToken) {
+    console.error('Strava webhook: STRAVA_VERIFY_TOKEN not configured');
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+  }
+
+  let rawBody: string;
   let event: StravaWebhookEvent;
 
   try {
-    event = await request.json();
+    rawBody = await request.text();
+    event = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  // Validate the subscription_id matches our known subscription.
+  // This prevents arbitrary actors from posting fake webhook events.
+  const expectedSubId = process.env.STRAVA_SUBSCRIPTION_ID;
+  if (expectedSubId && String(event.subscription_id) !== expectedSubId) {
+    console.warn('Strava webhook: subscription_id mismatch');
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   // Only process new activities

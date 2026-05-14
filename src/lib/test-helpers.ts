@@ -10,7 +10,9 @@
  * Never set this in production.
  */
 
-export const IS_TEST_MODE = process.env.NEXT_PUBLIC_TEST_MODE === 'true';
+export const IS_TEST_MODE =
+  process.env.NEXT_PUBLIC_TEST_MODE === 'true' &&
+  process.env.NODE_ENV !== 'production';
 
 export const TEST_USER_ID = '00000000-0000-0000-0000-000000000001';
 
