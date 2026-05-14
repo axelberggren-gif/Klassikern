@@ -12,7 +12,17 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const LAST_STAND_THRESHOLD = 0.10;
 
-Deno.serve(async () => {
+Deno.serve(async (request: Request) => {
+  // Verify cron secret to prevent unauthorized invocations
+  const cronSecret = Deno.env.get('CRON_SECRET');
+  const authHeader = request.headers.get('authorization');
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -49,7 +59,7 @@ Deno.serve(async () => {
         // Post Last Stand notification to group's activity feed
         await supabase.from('activity_feed').insert({
           group_id: encounter.group_id,
-          user_id: encounter.group_id, // system event
+          user_id: null, // system event — no user attribution
           event_type: 'boss_attacked',
           event_data: {
             boss_name: boss.name,

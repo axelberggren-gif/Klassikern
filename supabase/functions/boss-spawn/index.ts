@@ -23,7 +23,17 @@ function scaleBossHP(baseHp: number, groupSize: number): number {
   return Math.round(baseHp * (groupSize / 4));
 }
 
-Deno.serve(async () => {
+Deno.serve(async (request: Request) => {
+  // Verify cron secret to prevent unauthorized invocations
+  const cronSecret = Deno.env.get('CRON_SECRET');
+  const authHeader = request.headers.get('authorization');
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const weekNumber = getWeekNumber();
@@ -51,7 +61,7 @@ Deno.serve(async () => {
         // Post failed event to activity feed
         await supabase.from('activity_feed').insert({
           group_id: enc.group_id,
-          user_id: enc.group_id, // system event
+          user_id: null, // system event — no user attribution
           event_type: 'boss_failed',
           event_data: {
             remaining_hp: enc.current_hp,
@@ -133,7 +143,7 @@ Deno.serve(async () => {
         // Post "new boss appeared" event
         await supabase.from('activity_feed').insert({
           group_id: group.group_id,
-          user_id: group.group_id, // system event
+          user_id: null, // system event — no user attribution
           event_type: 'boss_attacked',
           event_data: {
             boss_name: boss.name,
